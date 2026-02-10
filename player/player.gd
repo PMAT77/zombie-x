@@ -37,8 +37,7 @@ var motion := Vector2()
 @onready var initial_position: Vector3 = transform.origin
 
 # 玩家输入同步器 - 处理多玩家输入同步
-@onready var player_input: PlayerInputSynchronizer = $InputSynchronizer
-# 动画树 - 控制角色动画状态机
+@onready var player_input: PlayerInputController = $InputSynchronizer  # 玩家输入控制器动画树 - 控制角色动画状态机
 @onready var animation_tree: AnimationTree = $AnimationTree
 # 玩家模型 - 3D角色模型节点
 @onready var player_model: Node3D = $PlayerModel
@@ -58,12 +57,8 @@ var motion := Vector2()
 # 射击音效播放器
 @onready var sound_effect_shoot: AudioStreamPlayer = sound_effects.get_node(^"Shoot")
 
-# 玩家ID - 用于多玩家识别和权限控制
-@export var player_id: int = 1:
-	set(value):
-		player_id = value
-		# 设置输入同步器的多玩家权限
-		$InputSynchronizer.set_multiplayer_authority(value)
+# 玩家ID - 用于识别（已移除多人游戏功能）
+@export var player_id: int = 1
 
 # 当前动画状态 - 记录玩家当前的动画
 @export var current_animation := Animations.WALK
@@ -75,18 +70,13 @@ func _ready() -> void:
 	orientation = player_model.global_transform
 	# 清除位置信息，只保留旋转
 	orientation.origin = Vector3()
-	# 如果不是服务器，则停止处理逻辑（客户端只显示动画）
-	if not multiplayer.is_server():
-		set_process(false)
 
 
 # 物理处理函数 - 每帧调用
 func _physics_process(delta: float) -> void:
-	# 服务器处理输入逻辑，客户端只播放动画
-	if multiplayer.is_server():
-		apply_input(delta)
-	else:
-		animate(current_animation, delta)
+	# 处理输入逻辑和动画
+	apply_input(delta)
+	animate(current_animation, delta)
 
 
 # 动画控制函数
@@ -144,7 +134,7 @@ func apply_input(delta: float) -> void:
 	if is_on_floor():
 		# 如果刚从空中落地，播放落地音效
 		if airborne_time > 0.5:
-			land.rpc()
+			land()
 		# 重置空中时间
 		airborne_time = 0
 
@@ -159,7 +149,7 @@ func apply_input(delta: float) -> void:
 		# 设置最小空中时间确保下一帧仍在空中状态
 		airborne_time = MIN_AIRBORNE_TIME
 		# 远程调用跳跃函数
-		jump.rpc()
+		jump()
 
 	# 重置跳跃标志
 	player_input.jumping = false
@@ -183,12 +173,13 @@ func apply_input(delta: float) -> void:
 			var corrected_rotation: float = player_input.mouse_aim_target_rotation + PI
 			var mouse_direction: Vector3 = Vector3(sin(corrected_rotation), 0, cos(corrected_rotation))
 			q_to = Basis.looking_at(mouse_direction, Vector3.UP).get_rotation_quaternion()
+			# 使用专门的鼠标瞄准旋转速度
+			orientation.basis = Basis(q_from.slerp(q_to, delta * player_input.MOUSE_AIM_ROTATION_SPEED))
 		else:
 			# 鼠标控制模式下，使用相机方向
 			q_to = player_input.get_camera_base_quaternion()
-		
-		# 使用球面线性插值平滑旋转
-		orientation.basis = Basis(q_from.slerp(q_to, delta * ROTATION_INTERPOLATE_SPEED))
+			# 使用默认的旋转插值速度
+			orientation.basis = Basis(q_from.slerp(q_to, delta * ROTATION_INTERPOLATE_SPEED))
 
 		# 播放侧向移动动画
 		animate(Animations.STRAFE, delta)
@@ -197,10 +188,13 @@ func apply_input(delta: float) -> void:
 		root_motion = Transform3D(animation_tree.get_root_motion_rotation(), animation_tree.get_root_motion_position())
 
 		# 射击逻辑
-		if player_input.shooting and fire_cooldown.time_left == 0:
-			# 计算射击起点和方向
+		if player_input.shooting and fire_cooldown.time_left == 0 and shoot_from:
+			# 计算射击起点
 			var shoot_origin: Vector3 = shoot_from.global_transform.origin
-			var shoot_dir: Vector3 = (player_input.shoot_target - shoot_origin).normalized()
+			var shoot_dir: Vector3
+
+			# 两种模式下子弹都朝向鼠标方向
+			shoot_dir = (player_input.shoot_target - shoot_origin).normalized()
 
 			# 创建子弹实例
 			var bullet: CharacterBody3D = preload("res://player/bullet/bullet.tscn").instantiate()
@@ -210,8 +204,8 @@ func apply_input(delta: float) -> void:
 			bullet.look_at(shoot_origin + shoot_dir)
 			# 避免子弹与玩家碰撞
 			bullet.add_collision_exception_with(self)
-			# 远程调用射击函数
-			shoot.rpc()
+			# 调用射击函数
+			shoot()
 
 	else:
 		# 行走状态下的旋转逻辑
@@ -256,51 +250,53 @@ func apply_input(delta: float) -> void:
 		transform.origin = initial_position
 
 
-# 远程调用函数 - 跳跃
-# 在所有客户端同步播放跳跃动画和音效
-@rpc("call_local")
+# 跳跃函数
+# 播放跳跃动画和音效
 func jump() -> void:
 	animate(Animations.JUMP_UP, 0.0)
-	sound_effect_jump.play()
+	if sound_effect_jump:
+		sound_effect_jump.play()
 
 
-# 远程调用函数 - 落地
-# 在所有客户端同步播放落地动画和音效
-@rpc("call_local")
+# 落地函数
+# 播放落地动画和音效
 func land() -> void:
 	animate(Animations.JUMP_DOWN, 0.0)
-	sound_effect_land.play()
+	if sound_effect_land:
+		sound_effect_land.play()
 
 
-# 远程调用函数 - 射击
-# 在所有客户端同步播放射击效果和音效
-@rpc("call_local")
+# 射击函数
+# 播放射击效果和音效
 func shoot() -> void:
 	# 播放射击粒子效果
 	var shoot_particle = $PlayerModel/Robot_Skeleton/Skeleton3D/GunBone/ShootFrom/ShootParticle
-	shoot_particle.restart()
-	shoot_particle.emitting = true
+	if shoot_particle:
+		shoot_particle.restart()
+		shoot_particle.emitting = true
 	# 播放枪口闪光效果
 	var muzzle_particle = $PlayerModel/Robot_Skeleton/Skeleton3D/GunBone/ShootFrom/MuzzleFlash
-	muzzle_particle.restart()
-	muzzle_particle.emitting = true
+	if muzzle_particle:
+		muzzle_particle.restart()
+		muzzle_particle.emitting = true
 	# 开始射击冷却
-	fire_cooldown.start()
+	if fire_cooldown:
+		fire_cooldown.start()
 	# 播放射击音效
-	sound_effect_shoot.play()
+	if sound_effect_shoot:
+		sound_effect_shoot.play()
 	# 添加相机震动
 	add_camera_shake_trauma(0.35)
 
 
-# 远程调用函数 - 被击中
+# 被击中函数
 # 处理玩家被击中时的效果
-@rpc("call_local")
 func hit() -> void:
 	add_camera_shake_trauma(0.75)
 
 
-# 远程调用函数 - 添加相机震动
+# 添加相机震动函数
 # 控制相机震动效果
-@rpc("call_local")
 func add_camera_shake_trauma(amount: float) -> void:
-	player_input.camera_camera.add_trauma(amount)
+	if player_input and player_input.camera_camera:
+		player_input.camera_camera.add_trauma(amount)

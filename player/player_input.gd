@@ -1,8 +1,8 @@
 # 玩家输入同步器脚本
 # 负责处理玩家输入、相机控制和多玩家同步
 
-class_name PlayerInputSynchronizer
-extends MultiplayerSynchronizer
+class_name PlayerInputController
+extends Node
 
 # 相机控制模式枚举
 enum CameraMode {
@@ -26,7 +26,7 @@ const CAMERA_X_ROT_MAX: float = deg_to_rad(70.0)
 # 相机距离控制相关常量
 const CAMERA_DISTANCE_MIN: float = 1.0      # 相机最小距离
 const CAMERA_DISTANCE_MAX: float = 16.0      # 相机最大距离
-const CAMERA_DISTANCE_STEP: float = 0.2     # 滚轮每次调整的距离步长
+const CAMERA_DISTANCE_STEP: float = 0.1     # 滚轮每次调整的距离步长
 const CAMERA_DISTANCE_SMOOTH_SPEED: float = 4.0  # 相机距离平滑过渡速度
 
 # 相机高度与距离联动参数
@@ -98,8 +98,9 @@ var height_change_progress: float = 0.0     # 高度调整进度（0-1）
 
 # 节点准备完成时调用
 func _ready() -> void:
-	# 如果是本地玩家，设置当前相机并捕获鼠标
-	if get_multiplayer_authority() == multiplayer.get_unique_id():
+	# 检查必要的节点是否存在
+	if camera_camera and camera_base and spring_arm:
+		# 设置当前相机并捕获鼠标
 		camera_camera.make_current()
 		# 根据相机模式设置鼠标模式
 		if camera_mode == CameraMode.MOUSE_CONTROL:
@@ -113,11 +114,6 @@ func _ready() -> void:
 		target_camera_distance = spring_arm.spring_length
 		# 初始化目标相机高度为当前高度
 		target_camera_height = camera_base.position.y
-	else:
-		# 非本地玩家禁用处理和输入，隐藏颜色矩形
-		set_process(false)
-		set_process_input(false)
-		color_rect.hide()
 
 
 # 每帧处理函数
@@ -205,21 +201,31 @@ func _process(delta: float) -> void:
 	if camera_mode == CameraMode.KEYBOARD_CONTROL and aiming:
 		update_mouse_aim_target_rotation() 
 
-	# 跳跃输入处理（通过RPC调用）
+	# 跳跃输入处理
 	if Input.is_action_just_pressed("jump"):
-		jump.rpc()
+		jump()
 
 	# 射击输入处理
 	shooting = Input.is_action_pressed("shoot")
-	if shooting:
-		# 计算准星在屏幕上的位置
-		var ch_pos = crosshair.position + crosshair.size * 0.5
+	if shooting and camera_camera:
+		# 计算射击起点在屏幕上的位置
+		var shoot_pos: Vector2
+		
+		# 键盘控制模式下使用鼠标位置，鼠标控制模式下使用准星位置
+		if camera_mode == CameraMode.KEYBOARD_CONTROL:
+			shoot_pos = get_viewport().get_mouse_position()
+		elif crosshair:
+			shoot_pos = crosshair.position + crosshair.size * 0.5
+		else:
+			# 如果准星不存在，使用屏幕中心
+			shoot_pos = get_viewport().size * 0.5
+		
 		# 从相机发射射线
-		var ray_from = camera_camera.project_ray_origin(ch_pos)
-		var ray_dir = camera_camera.project_ray_normal(ch_pos)
+		var ray_from = camera_camera.project_ray_origin(shoot_pos)
+		var ray_dir = camera_camera.project_ray_normal(shoot_pos)
 
 		# 检测射线碰撞
-		var col = get_parent().get_world_3d().direct_space_state.intersect_ray(PhysicsRayQueryParameters3D.create(ray_from, ray_from + ray_dir * 1000, 0b11, Array([self], TYPE_RID, "", null)))
+		var col = get_parent().get_world_3d().direct_space_state.intersect_ray(PhysicsRayQueryParameters3D.create(ray_from, ray_from + ray_dir * 1000, 0b11, []))
 		# 设置射击目标位置
 		if col.is_empty():
 			shoot_target = ray_from + ray_dir * 1000.0
@@ -229,10 +235,10 @@ func _process(delta: float) -> void:
 	# 坠落检测和屏幕渐变效果
 	var player_transform: Transform3D = get_parent().global_transform
 	# 如果玩家位置低于-17（地图最低有效位置）
-	if player_transform.origin.y < -17.0:
+	if player_transform.origin.y < -17.0 and color_rect:
 		# 根据坠落距离计算屏幕渐变透明度
 		color_rect.modulate.a = minf((-17.0 - player_transform.origin.y) / 15.0, 1.0)
-	else:
+	elif color_rect:
 		# 玩家回到安全位置时逐渐淡出黑色覆盖
 		color_rect.modulate.a *= 1.0 - delta * 4.0
 
@@ -266,25 +272,27 @@ func start_smooth_rotation(angle: float) -> void:
 
 # 处理平滑旋转
 func handle_smooth_rotation(delta: float) -> void:
-	# 更新旋转进度
-	rotation_progress += delta * KEYBOARD_ROTATION_SMOOTH_SPEED
-	
-	# 使用缓动函数实现平滑过渡（easeOutCubic）
-	var t: float = ease_out_cubic(clamp(rotation_progress, 0.0, 1.0))
-	
-	# 计算当前旋转角度
-	var current_rotation: float = lerp_angle(camera_base.rotation.y, target_y_rotation, t)
-	
-	# 应用旋转
-	camera_base.rotation.y = current_rotation
-	
-	# 检查旋转是否完成
-	if rotation_progress >= 1.0:
-		# 确保最终角度精确
-		camera_base.rotation.y = target_y_rotation
-		# 完成旋转
-		is_rotating = false
-		print("旋转完成: %.1f 度" % rad_to_deg(camera_base.rotation.y))
+	# 检查相机基础节点是否存在
+	if camera_base:
+		# 更新旋转进度
+		rotation_progress += delta * KEYBOARD_ROTATION_SMOOTH_SPEED
+		
+		# 使用缓动函数实现平滑过渡（easeOutCubic）
+		var t: float = ease_out_cubic(clamp(rotation_progress, 0.0, 1.0))
+		
+		# 计算当前旋转角度
+		var current_rotation: float = lerp_angle(camera_base.rotation.y, target_y_rotation, t)
+		
+		# 应用旋转
+		camera_base.rotation.y = current_rotation
+		
+		# 检查旋转是否完成
+		if rotation_progress >= 1.0:
+			# 确保最终角度精确
+			camera_base.rotation.y = target_y_rotation
+			# 完成旋转
+			is_rotating = false
+			print("旋转完成: %.1f 度" % rad_to_deg(camera_base.rotation.y))
 
 
 # 缓出三次方函数（easeOutCubic）
@@ -312,12 +320,14 @@ func _input(input_event: InputEvent) -> void:
 # 相机旋转函数
 # 根据移动向量旋转相机的基础和旋转节点
 func rotate_camera(move: Vector2) -> void:
-	# 旋转相机基础节点（Y轴旋转）
-	camera_base.rotate_y(-move.x)
-	# 正交标准化变换
-	camera_base.orthonormalize()
-	# 旋转相机旋转节点（X轴旋转），限制在有效范围内
-	camera_rot.rotation.x = clampf(camera_rot.rotation.x + move.y, CAMERA_X_ROT_MIN, CAMERA_X_ROT_MAX)
+	# 检查必要的节点是否存在
+	if camera_base and camera_rot:
+		# 旋转相机基础节点（Y轴旋转）
+		camera_base.rotate_y(-move.x)
+		# 正交标准化变换
+		camera_base.orthonormalize()
+		# 旋转相机旋转节点（X轴旋转），限制在有效范围内
+		camera_rot.rotation.x = clampf(camera_rot.rotation.x + move.y, CAMERA_X_ROT_MIN, CAMERA_X_ROT_MAX)
 
 
 # 获取瞄准旋转角度
@@ -343,9 +353,8 @@ func get_camera_rotation_basis() -> Basis:
 	return camera_rot.global_transform.basis
 
 
-# 远程调用函数 - 跳跃
+# 跳跃函数
 # 设置跳跃标志，将在主玩家脚本中处理
-@rpc("call_local")
 func jump() -> void:
 	jumping = true
 
@@ -356,14 +365,14 @@ func switch_camera_mode(new_mode: CameraMode) -> void:
 		camera_mode = new_mode
 		
 		# 根据新模式设置鼠标模式
-		if get_multiplayer_authority() == multiplayer.get_unique_id():
+		if camera_camera:
 			if camera_mode == CameraMode.MOUSE_CONTROL:
 				Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
 			else:
 				Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
 		
 		# 重置旋转状态
-		if camera_mode == CameraMode.KEYBOARD_CONTROL:
+		if camera_mode == CameraMode.KEYBOARD_CONTROL and camera_base and spring_arm:
 			target_y_rotation = camera_base.rotation.y
 			is_distance_changing = false
 			distance_change_progress = 0.0
@@ -384,11 +393,13 @@ func handle_mouse_wheel_input(event: InputEventMouseButton) -> void:
 		if event.button_index == MOUSE_BUTTON_WHEEL_UP:
 			# 滚轮向上 - 拉近相机
 			new_distance = max(CAMERA_DISTANCE_MIN, target_camera_distance - CAMERA_DISTANCE_STEP)
-			print("滚轮向上: 相机距离从 %.1f 调整到 %.1f" % [spring_arm.spring_length, new_distance])
+			if spring_arm:
+				print("滚轮向上: 相机距离从 %.1f 调整到 %.1f" % [spring_arm.spring_length, new_distance])
 		elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
 			# 滚轮向下 - 拉远相机
 			new_distance = min(CAMERA_DISTANCE_MAX, target_camera_distance + CAMERA_DISTANCE_STEP)
-			print("滚轮向下: 相机距离从 %.1f 调整到 %.1f" % [spring_arm.spring_length, new_distance])
+			if spring_arm:
+				print("滚轮向下: 相机距离从 %.1f 调整到 %.1f" % [spring_arm.spring_length, new_distance])
 		
 		# 如果距离有变化，开始平滑调整
 		if new_distance != target_camera_distance:
@@ -407,98 +418,106 @@ func handle_mouse_wheel_input(event: InputEventMouseButton) -> void:
 
 # 处理相机距离平滑调整
 func handle_smooth_distance_change(delta: float) -> void:
-	# 更新距离调整进度
-	distance_change_progress += delta * CAMERA_DISTANCE_SMOOTH_SPEED
-	
-	# 使用缓动函数实现平滑过渡
-	var t: float = ease_out_cubic(clamp(distance_change_progress, 0.0, 1.0))
-	
-	# 计算当前相机距离
-	var current_distance: float = lerp(spring_arm.spring_length, target_camera_distance, t)
-	
-	# 应用距离调整
-	spring_arm.spring_length = current_distance
-	
-	# 检查距离调整是否完成
-	if distance_change_progress >= 1.0:
-		# 确保最终距离精确
-		spring_arm.spring_length = target_camera_distance
-		# 完成距离调整
-		is_distance_changing = false
-		print("相机距离调整完成: %.1f" % spring_arm.spring_length)
+	# 检查spring_arm是否存在
+	if spring_arm:
+		# 更新距离调整进度
+		distance_change_progress += delta * CAMERA_DISTANCE_SMOOTH_SPEED
+		
+		# 使用缓动函数实现平滑过渡
+		var t: float = ease_out_cubic(clamp(distance_change_progress, 0.0, 1.0))
+		
+		# 计算当前相机距离
+		var current_distance: float = lerp(spring_arm.spring_length, target_camera_distance, t)
+		
+		# 应用距离调整
+		spring_arm.spring_length = current_distance
+		
+		# 检查距离调整是否完成
+		if distance_change_progress >= 1.0:
+			# 确保最终距离精确
+			spring_arm.spring_length = target_camera_distance
+			# 完成距离调整
+			is_distance_changing = false
+			print("相机距离调整完成: %.1f" % spring_arm.spring_length)
 
 
 # 处理自动模式切换检测
 func handle_auto_mode_switch() -> void:
-	# 获取当前相机距离
-	var current_distance: float = spring_arm.spring_length
-	
-	# 只有当距离发生变化时才检测模式切换
-	if abs(current_distance - last_camera_distance) > 0.01:
-		last_camera_distance = current_distance
+	# 检查spring_arm是否存在
+	if spring_arm:
+		# 获取当前相机距离
+		var current_distance: float = spring_arm.spring_length
 		
-		# 检测是否需要切换到鼠标控制模式（近距离）
-		if current_distance < AUTO_MODE_SWITCH_THRESHOLD_CLOSE and camera_mode != CameraMode.MOUSE_CONTROL:
-			switch_camera_mode(CameraMode.MOUSE_CONTROL)
-			print("自动切换到鼠标控制模式（相机距离: %.1f < %.1f）" % [current_distance, AUTO_MODE_SWITCH_THRESHOLD_CLOSE])
-			auto_mode_switch_cooldown = AUTO_MODE_SWITCH_COOLDOWN
-		
-		# 检测是否需要切换到键盘控制模式（远距离）
-		elif current_distance > AUTO_MODE_SWITCH_THRESHOLD_FAR and camera_mode != CameraMode.KEYBOARD_CONTROL:
-			switch_camera_mode(CameraMode.KEYBOARD_CONTROL)
-			print("自动切换到键盘控制模式（相机距离: %.1f > %.1f）" % [current_distance, AUTO_MODE_SWITCH_THRESHOLD_FAR])
-			auto_mode_switch_cooldown = AUTO_MODE_SWITCH_COOLDOWN
+		# 只有当距离发生变化时才检测模式切换
+		if abs(current_distance - last_camera_distance) > 0.01:
+			last_camera_distance = current_distance
+			
+			# 检测是否需要切换到鼠标控制模式（近距离）
+			if current_distance < AUTO_MODE_SWITCH_THRESHOLD_CLOSE and camera_mode != CameraMode.MOUSE_CONTROL:
+				switch_camera_mode(CameraMode.MOUSE_CONTROL)
+				print("自动切换到鼠标控制模式（相机距离: %.1f < %.1f）" % [current_distance, AUTO_MODE_SWITCH_THRESHOLD_CLOSE])
+				auto_mode_switch_cooldown = AUTO_MODE_SWITCH_COOLDOWN
+			
+			# 检测是否需要切换到键盘控制模式（远距离）
+			elif current_distance > AUTO_MODE_SWITCH_THRESHOLD_FAR and camera_mode != CameraMode.KEYBOARD_CONTROL:
+				switch_camera_mode(CameraMode.KEYBOARD_CONTROL)
+				print("自动切换到键盘控制模式（相机距离: %.1f > %.1f）" % [current_distance, AUTO_MODE_SWITCH_THRESHOLD_FAR])
+				auto_mode_switch_cooldown = AUTO_MODE_SWITCH_COOLDOWN
 
 
 # 处理相机高度平滑调整
 func handle_smooth_height_change(delta: float) -> void:
-	# 更新高度调整进度
-	height_change_progress += delta * CAMERA_HEIGHT_SMOOTH_SPEED
-	
-	# 使用缓动函数实现平滑过渡
-	var t: float = ease_out_cubic(clamp(height_change_progress, 0.0, 1.0))
-	
-	# 计算当前相机高度
-	var current_height: float = lerp(camera_base.position.y, target_camera_height, t)
-	
-	# 应用高度调整（只调整Y轴位置）
-	camera_base.position.y = current_height
-	
-	# 检查高度调整是否完成
-	if height_change_progress >= 1.0:
-		# 确保最终高度精确
-		camera_base.position.y = target_camera_height
-		# 完成高度调整
-		is_height_changing = false
-		print("相机高度调整完成: %.1f" % camera_base.position.y)
+	# 检查camera_base是否存在
+	if camera_base:
+		# 更新高度调整进度
+		height_change_progress += delta * CAMERA_HEIGHT_SMOOTH_SPEED
+		
+		# 使用缓动函数实现平滑过渡
+		var t: float = ease_out_cubic(clamp(height_change_progress, 0.0, 1.0))
+		
+		# 计算当前相机高度
+		var current_height: float = lerp(camera_base.position.y, target_camera_height, t)
+		
+		# 应用高度调整
+		camera_base.position.y = current_height
+		
+		# 检查高度调整是否完成
+		if height_change_progress >= 1.0:
+			# 确保最终高度精确
+			camera_base.position.y = target_camera_height
+			# 完成高度调整
+			is_height_changing = false
+			print("相机高度调整完成: %.1f" % camera_base.position.y)
 
 
 # 更新鼠标瞄准时的目标人物旋转角度
 func update_mouse_aim_target_rotation() -> void:
-	# 获取鼠标在屏幕上的位置
-	var mouse_pos: Vector2 = get_viewport().get_mouse_position()
-	
-	# 从相机发射射线到鼠标位置
-	var ray_from = camera_camera.project_ray_origin(mouse_pos)
-	var ray_dir = camera_camera.project_ray_normal(mouse_pos)
-	
-	# 计算射线与水平面的交点（Y=0的平面）
-	var player_pos: Vector3 = get_parent().global_transform.origin
-	var plane_normal: Vector3 = Vector3.UP
-	var plane_point: Vector3 = Vector3(player_pos.x, 0, player_pos.z)
-	
-	# 计算射线与平面的交点
-	var denom: float = plane_normal.dot(ray_dir)
-	if abs(denom) > 0.0001:
-		var t: float = (plane_normal.dot(plane_point) - plane_normal.dot(ray_from)) / denom
-		var hit_point: Vector3 = ray_from + ray_dir * t
+	# 检查必要的节点是否存在
+	if camera_camera and get_parent():
+		# 获取鼠标在屏幕上的位置
+		var mouse_pos: Vector2 = get_viewport().get_mouse_position()
 		
-		# 计算从玩家位置到交点的方向向量
-		var direction: Vector3 = (hit_point - player_pos).normalized()
+		# 从相机发射射线到鼠标位置
+		var ray_from = camera_camera.project_ray_origin(mouse_pos)
+		var ray_dir = camera_camera.project_ray_normal(mouse_pos)
 		
-		# 计算目标旋转角度（Y轴旋转）
-		# 注意：atan2(y, x) 返回从x轴正方向逆时针旋转到向量的角度
-		# 但在3D中，我们需要的是从z轴正方向的角度
-		mouse_aim_target_rotation = atan2(direction.x, direction.z)
+		# 计算射线与水平面的交点（Y=0的平面）
+		var player_pos: Vector3 = get_parent().global_transform.origin
+		var plane_normal: Vector3 = Vector3.UP
+		var plane_point: Vector3 = Vector3(player_pos.x, 0, player_pos.z)
 		
-		print("鼠标瞄准目标旋转角度: %.1f 度" % rad_to_deg(mouse_aim_target_rotation))
+		# 计算射线与平面的交点
+		var denom: float = plane_normal.dot(ray_dir)
+		if abs(denom) > 0.0001:
+			var t: float = (plane_normal.dot(plane_point) - plane_normal.dot(ray_from)) / denom
+			var hit_point: Vector3 = ray_from + ray_dir * t
+			
+			# 计算从玩家位置到交点的方向向量
+			var direction: Vector3 = (hit_point - player_pos).normalized()
+			
+			# 计算目标旋转角度（Y轴旋转）
+			# 注意：atan2(y, x) 返回从x轴正方向逆时针旋转到向量的角度
+			# 但在3D中，我们需要的是从z轴正方向的角度
+			mouse_aim_target_rotation = atan2(direction.x, direction.z)
+			
+			print("鼠标瞄准目标旋转角度: %.1f 度" % rad_to_deg(mouse_aim_target_rotation))
