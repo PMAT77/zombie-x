@@ -70,7 +70,11 @@ func animate(anim: int, _delta: float) -> void:
 		Animations.STRAFE:
 			animation_tree["parameters/state/transition_request"] = "strafe"
 			animation_tree["parameters/aim/add_amount"] = player_input.get_aim_rotation()
-			animation_tree["parameters/strafe/blend_position"] = Vector2(motion.x, -motion.y)
+			# 在键盘控制模式下，移动方向相对于相机方向
+			if player_input.camera_mode == player_input.CameraMode.KEYBOARD_CONTROL:
+				animation_tree["parameters/strafe/blend_position"] = calculate_strafe_blend_position()
+			else:
+				animation_tree["parameters/strafe/blend_position"] = Vector2(motion.x, -motion.y)
 			
 		Animations.WALK:
 			animation_tree["parameters/aim/add_amount"] = 0
@@ -82,6 +86,7 @@ func animate(anim: int, _delta: float) -> void:
 func apply_input(delta: float) -> void:
 	# 平滑插值移动向量
 	motion = motion.lerp(player_input.motion, MOTION_INTERPOLATE_SPEED * delta)
+	print('motion', player_input.motion)
 	
 	# 更新空中状态
 	update_airborne_state(delta)
@@ -92,9 +97,9 @@ func apply_input(delta: float) -> void:
 	# 根据状态选择动画和旋转逻辑
 	if is_airborne():
 		handle_airborne_animation()
-	elif player_input.aiming:
+	elif player_input.aiming: 
 		handle_aiming_state(delta)
-	else:
+	else: 
 		handle_walking_state(delta)
 	
 	# 应用物理运动和根运动
@@ -152,8 +157,8 @@ func handle_aiming_state(delta: float) -> void:
 	if player_input.shooting and fire_cooldown.time_left == 0 and shoot_from:
 		handle_shooting()
 
-# 处理行走状态
-func handle_walking_state(delta: float) -> void:
+# 计算移动方向
+func calculate_move_direction() -> Vector3:
 	# 获取相机方向向量
 	var camera_basis: Basis = player_input.get_camera_rotation_basis()
 	var camera_x: Vector3 = camera_basis.x
@@ -165,19 +170,53 @@ func handle_walking_state(delta: float) -> void:
 	camera_z.y = 0
 	camera_z = camera_z.normalized()
 	
-	# 计算移动方向
-	var target: Vector3 = camera_x * motion.x + camera_z * motion.y
-	if target.length() > 0.001:
-		var q_from: Quaternion = orientation.basis.get_rotation_quaternion()
-		var q_to: Quaternion = Basis.looking_at(target).get_rotation_quaternion()
-		orientation.basis = Basis(q_from.slerp(q_to, delta * ROTATION_INTERPOLATE_SPEED))
+	# 计算移动方向（始终相对于相机方向）
+	return camera_x * motion.x + camera_z * motion.y
+
+# 计算侧向移动混合位置（相对于相机方向）
+func calculate_strafe_blend_position() -> Vector2:
+	# 获取相机方向向量
+	var camera_basis: Basis = player_input.get_camera_rotation_basis()
+	var camera_x: Vector3 = camera_basis.x
+	var camera_z: Vector3 = camera_basis.z
+	
+	# 标准化相机方向向量（忽略Y轴）
+	camera_x.y = 0
+	camera_x = camera_x.normalized()
+	camera_z.y = 0
+	camera_z = camera_z.normalized()
+	
+	# 获取角色当前朝向
+	var character_forward: Vector3 = orientation.basis.z
+	var character_right: Vector3 = orientation.basis.x
+	
+	# 计算移动方向（相对于相机方向）
+	var move_direction: Vector3 = camera_x * motion.x + camera_z * motion.y
+	
+	# 将移动方向投影到角色的前后和左右方向
+	var forward_component: float = move_direction.dot(character_forward)
+	var right_component: float = move_direction.dot(character_right)
+	
+	# 返回混合位置（前后和左右分量）
+	return Vector2(right_component, -forward_component)
+
+# 处理行走状态
+func handle_walking_state(delta: float) -> void:
+	# 获取移动方向向量
+	var move_direction: Vector3 = calculate_move_direction() 
+	
+	# 如果移动方向有效，旋转角色朝向移动方向
+	if move_direction.length() > 0.001:
+			var q_from: Quaternion = orientation.basis.get_rotation_quaternion()
+			var q_to: Quaternion = Basis.looking_at(move_direction).get_rotation_quaternion()
+			orientation.basis = Basis(q_from.slerp(q_to, delta * ROTATION_INTERPOLATE_SPEED))
 	
 	animate(Animations.WALK, delta)
 	update_root_motion()
 
 # 更新根运动数据
 func update_root_motion() -> void:
-	root_motion = Transform3D(animation_tree.get_root_motion_rotation(), animation_tree.get_root_motion_position())
+	root_motion = Transform3D(animation_tree.get_root_motion_rotation(), animation_tree.get_root_motion_position()) 
 
 # 应用物理运动
 func apply_physics_motion(delta: float) -> void:
@@ -198,7 +237,7 @@ func apply_physics_motion(delta: float) -> void:
 	# 重置根运动位移并应用旋转到玩家模型
 	orientation.origin = Vector3()
 	orientation = orientation.orthonormalized()
-	player_model.global_transform.basis = orientation.basis
+	player_model.global_transform.basis = orientation.basis 
 
 # 处理射击逻辑
 func handle_shooting() -> void:

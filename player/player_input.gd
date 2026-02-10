@@ -224,7 +224,7 @@ func start_smooth_rotation(angle: float) -> void:
 	rotation_progress = 0.0
 	is_rotating = true
 	
-	print("开始平滑旋转: 从 %.1f 度到 %.1f 度" % [rad_to_deg(camera_base.rotation.y), rad_to_deg(target_y_rotation)])
+	# print("开始平滑旋转: 从 %.1f 度到 %.1f 度" % [rad_to_deg(camera_base.rotation.y), rad_to_deg(target_y_rotation)])
 
 # 处理平滑旋转
 func handle_smooth_rotation(delta: float) -> void:
@@ -238,7 +238,7 @@ func handle_smooth_rotation(delta: float) -> void:
 		if rotation_progress >= 1.0:
 			camera_base.rotation.y = target_y_rotation
 			is_rotating = false
-			print("旋转完成: %.1f 度" % rad_to_deg(camera_base.rotation.y))
+			# print("旋转完成: %.1f 度" % rad_to_deg(camera_base.rotation.y))
 
 # 缓出三次方函数（easeOutCubic）
 func ease_out_cubic(t: float) -> float:
@@ -289,7 +289,7 @@ func switch_camera_mode(new_mode: CameraMode) -> void:
 		camera_mode = new_mode
 		update_mouse_mode()
 		reset_rotation_state()
-		print("相机模式已切换至: %s" % ("鼠标控制" if camera_mode == CameraMode.MOUSE_CONTROL else "键盘控制"))
+		# print("相机模式已切换至: %s" % ("鼠标控制" if camera_mode == CameraMode.MOUSE_CONTROL else "键盘控制"))
 
 # 更新鼠标模式
 func update_mouse_mode() -> void:
@@ -316,10 +316,10 @@ func handle_mouse_wheel_input(event: InputEventMouseButton) -> void:
 		
 		if event.button_index == MOUSE_BUTTON_WHEEL_UP:
 			new_distance = max(CAMERA_DISTANCE_MIN, target_camera_distance - CAMERA_DISTANCE_STEP)
-			print("滚轮向上: 相机距离从 %.1f 调整到 %.1f" % [spring_arm.spring_length, new_distance])
+			# print("滚轮向上: 相机距离从 %.1f 调整到 %.1f" % [spring_arm.spring_length, new_distance])
 		elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
 			new_distance = min(CAMERA_DISTANCE_MAX, target_camera_distance + CAMERA_DISTANCE_STEP)
-			print("滚轮向下: 相机距离从 %.1f 调整到 %.1f" % [spring_arm.spring_length, new_distance])
+			# print("滚轮向下: 相机距离从 %.1f 调整到 %.1f" % [spring_arm.spring_length, new_distance])
 		
 		if new_distance != target_camera_distance:
 			target_camera_distance = new_distance
@@ -332,7 +332,7 @@ func handle_mouse_wheel_input(event: InputEventMouseButton) -> void:
 			is_height_changing = true
 			height_change_progress = 0.0
 			
-			print("同时调整相机高度到: %.1f" % target_camera_height)
+			# print("同时调整相机高度到: %.1f" % target_camera_height)
 
 # 处理相机距离平滑调整
 func handle_smooth_distance_change(delta: float) -> void:
@@ -346,7 +346,7 @@ func handle_smooth_distance_change(delta: float) -> void:
 		if distance_change_progress >= 1.0:
 			spring_arm.spring_length = target_camera_distance
 			is_distance_changing = false
-			print("相机距离调整完成: %.1f" % spring_arm.spring_length)
+			# print("相机距离调整完成: %.1f" % spring_arm.spring_length)
 
 # 处理自动模式切换检测
 func handle_auto_mode_switch() -> void:
@@ -375,7 +375,7 @@ func handle_smooth_height_change(delta: float) -> void:
 		if height_change_progress >= 1.0:
 			camera_base.position.y = target_camera_height
 			is_height_changing = false
-			print("相机高度调整完成: %.1f" % camera_base.position.y)
+			# print("相机高度调整完成: %.1f" % camera_base.position.y)
 
 # 更新鼠标瞄准时的目标人物旋转角度
 func update_mouse_aim_target_rotation() -> void:
@@ -395,7 +395,7 @@ func update_mouse_aim_target_rotation() -> void:
 			var direction: Vector3 = (hit_point - player_pos).normalized()
 			
 			mouse_aim_target_rotation = atan2(direction.x, direction.z)
-			print("鼠标瞄准目标旋转角度: %.1f 度" % rad_to_deg(mouse_aim_target_rotation))
+			# print("鼠标瞄准目标旋转角度: %.1f 度" % rad_to_deg(mouse_aim_target_rotation))
 
 # 计算射击目标位置
 func calculate_shoot_target() -> Vector3:
