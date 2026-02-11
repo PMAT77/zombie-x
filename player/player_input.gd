@@ -50,6 +50,7 @@ const AIM_HOLD_THRESHOLD: float = 0.4                  # 瞄准保持阈值 - �
 @export var motion := Vector2()           # 移动向量
 @export var shooting: bool = false        # 是否正在射击
 @export var jumping: bool = false         # 是否正在跳跃
+@export var reloading: bool = false       # 是否正在换弹
 
 # 相机控制变量
 var toggled_aim: bool = false             # 瞄准切换标志
@@ -119,6 +120,7 @@ func _process(delta: float) -> void:
 	handle_aiming_logic(delta)
 	handle_shooting_logic()
 	handle_jump_input()
+	handle_reload_input()
 	handle_fall_effect()
 
 # 更新计时器
@@ -199,6 +201,11 @@ func handle_shooting_logic() -> void:
 func handle_jump_input() -> void:
 	if Input.is_action_just_pressed("jump"):
 		jump()
+
+# 处理换弹输入
+func handle_reload_input() -> void:
+	if Input.is_action_just_pressed("reload"):
+		reload()
 
 # 处理坠落效果
 func handle_fall_effect() -> void:
@@ -282,6 +289,10 @@ func get_camera_rotation_basis() -> Basis:
 # 跳跃函数
 func jump() -> void:
 	jumping = true
+
+# 换弹函数
+func reload() -> void:
+	reloading = true
 
 # 切换相机控制模式
 func switch_camera_mode(new_mode: CameraMode) -> void:

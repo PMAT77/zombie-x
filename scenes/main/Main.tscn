@@ -8,3 +8,4 @@
 [node name="Ground" parent="." instance=ExtResource("1_u1xfj")]
 
 [node name="Player" parent="." instance=ExtResource("2_nha0i")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 23.286, 0, -0.19)

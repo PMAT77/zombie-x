@@ -40,18 +40,36 @@ var current_animation := Animations.WALK  # 当前动画状态
 
 # 音效节点组
 @onready var sound_effects: Node = $SoundEffects
-@onready var sound_effect_jump: AudioStreamPlayer = sound_effects.get_node(^"Jump")
-@onready var sound_effect_land: AudioStreamPlayer = sound_effects.get_node(^"Land")
-@onready var sound_effect_shoot: AudioStreamPlayer = sound_effects.get_node(^"Shoot")
+@onready var sound_effect_jump: AudioStreamPlayer = sound_effects.get_node_or_null(^"Jump")
+@onready var sound_effect_land: AudioStreamPlayer = sound_effects.get_node_or_null(^"Land")
+@onready var sound_effect_shoot: AudioStreamPlayer = sound_effects.get_node_or_null(^"Shoot")
+@onready var sound_effect_reload: AudioStreamPlayer = sound_effects.get_node_or_null(^"Reload")
+
+# 玩家属性系统
+var player_stats: PlayerStats = PlayerStats.new()
 
 # 节点准备完成时调用
 func _ready() -> void:
 	# 初始化方向变换为玩家模型的全局变换，只保留旋转信息
 	orientation = player_model.global_transform
 	orientation.origin = Vector3()
+	
+	# 连接属性系统信号
+	player_stats.health_changed.connect(_on_health_changed)
+	player_stats.death.connect(_on_death)
+	player_stats.level_up.connect(_on_level_up)
+	player_stats.exp_gained.connect(_on_exp_gained)
+	player_stats.ammo_changed.connect(_on_ammo_changed)
 
 # 物理处理函数 - 每帧调用
 func _physics_process(delta: float) -> void:
+	# 更新玩家属性系统
+	player_stats.update(delta)
+	
+	# 检查玩家是否死亡
+	if player_stats.is_dead:
+		return
+	
 	apply_input(delta)      # 处理输入和动画逻辑
 	animate(current_animation, delta)  # 更新动画状态
 
@@ -85,14 +103,16 @@ func animate(anim: int, _delta: float) -> void:
 # 处理玩家的移动、跳跃、射击等输入
 func apply_input(delta: float) -> void:
 	# 平滑插值移动向量
-	motion = motion.lerp(player_input.motion, MOTION_INTERPOLATE_SPEED * delta)
-	print('motion', player_input.motion)
+	motion = motion.lerp(player_input.motion, MOTION_INTERPOLATE_SPEED * delta) 
 	
 	# 更新空中状态
 	update_airborne_state(delta)
 	
 	# 处理跳跃输入
 	handle_jump_input()
+	
+	# 处理换弹输入
+	handle_reload_input()
 	
 	# 根据状态选择动画和旋转逻辑
 	if is_airborne():
@@ -128,6 +148,12 @@ func handle_jump_input() -> void:
 		jump()
 	player_input.jumping = false
 
+# 处理换弹输入
+func handle_reload_input() -> void:
+	if player_input.reloading:
+		reload()
+		player_input.reloading = false
+
 # 处理空中动画
 func handle_airborne_animation() -> void:
 	if velocity.y > 0:
@@ -155,6 +181,10 @@ func handle_aiming_state(delta: float) -> void:
 	
 	# 处理射击逻辑
 	if player_input.shooting and fire_cooldown.time_left == 0 and shoot_from:
+		# 检查是否有弹药
+		if not player_stats.consume_ammo():
+			# 没有弹药，不射击
+			return
 		handle_shooting()
 
 # 计算移动方向
@@ -261,13 +291,13 @@ func handle_fall_reset() -> void:
 # 跳跃函数 - 播放跳跃动画和音效
 func jump() -> void:
 	animate(Animations.JUMP_UP, 0.0)
-	if sound_effect_jump:
+	if sound_effect_jump and sound_effect_jump.stream:
 		sound_effect_jump.play()
 
 # 落地函数 - 播放落地动画和音效
 func land() -> void:
 	animate(Animations.JUMP_DOWN, 0.0)
-	if sound_effect_land:
+	if sound_effect_land and sound_effect_land.stream:
 		sound_effect_land.play()
 
 # 射击函数 - 播放射击效果和音效
@@ -286,11 +316,29 @@ func shoot() -> void:
 	# 开始冷却并播放音效
 	if fire_cooldown:
 		fire_cooldown.start()
-	if sound_effect_shoot:
+	if sound_effect_shoot and sound_effect_shoot.stream:
 		sound_effect_shoot.play()
 	
 	# 添加相机震动
 	add_camera_shake_trauma(0.35)
+
+# 换弹函数 - 播放换弹效果和音效
+func reload() -> void:
+	# 检查是否需要换弹（弹药不满时）
+	if player_stats.current_ammo >= player_stats.max_ammo:
+		return
+	
+	# 补充弹药
+	player_stats.refill_ammo()
+	
+	# 安全地播放换弹音效（如果存在）
+	if sound_effect_reload and sound_effect_reload.stream:
+		sound_effect_reload.play() 
+	
+	# 添加轻微的相机震动
+	add_camera_shake_trauma(0.15)
+	
+	print("换弹完成，当前弹药: %d/%d" % [player_stats.current_ammo, player_stats.max_ammo])
 
 # 被击中函数 - 处理玩家被击中时的效果
 func hit() -> void:
@@ -300,3 +348,64 @@ func hit() -> void:
 func add_camera_shake_trauma(amount: float) -> void:
 	if player_input and player_input.camera_camera:
 		player_input.camera_camera.add_trauma(amount)
+
+# 属性系统信号处理函数
+# 生命值变化处理
+func _on_health_changed(current_health: float, max_health: float) -> void:
+	print("生命值变化: %.1f / %.1f" % [current_health, max_health])
+
+# 死亡处理
+func _on_death() -> void:
+	print("玩家死亡")
+	# 禁用输入
+	set_physics_process(false)
+	# 播放死亡动画（如果有的话）
+	# 可以在这里添加死亡特效
+
+# 升级处理
+func _on_level_up(new_level: int) -> void:
+	print("升级到等级: %d" % new_level)
+	# 播放升级特效
+	# 可以在这里添加升级奖励
+
+# 获得经验处理
+func _on_exp_gained(experience: float) -> void:
+	print("获得经验: %.1f" % experience)
+	# 可以在这里添加经验获得特效
+
+# 弹药变化处理
+func _on_ammo_changed(current_ammo: int, max_ammo: int) -> void:
+	print("弹药变化: %d / %d" % [current_ammo, max_ammo])
+
+# 玩家属性系统接口函数
+# 获得经验（从外部调用）
+func gain_experience(amount: float) -> void:
+	player_stats.gain_exp(amount)
+
+# 受到伤害（从外部调用）
+func take_damage(amount: float) -> void:
+	player_stats.take_damage(amount)
+	# 添加受伤特效
+	hit()
+
+# 治疗（从外部调用）
+func heal(amount: float) -> void:
+	player_stats.heal(amount)
+
+# 复活（从外部调用）
+func revive() -> void:
+	player_stats.revive()
+	set_physics_process(true)
+	transform.origin = initial_position
+
+# 设置无敌状态（从外部调用）
+func set_invincible(duration: float) -> void:
+	player_stats.set_invincible(duration)
+
+# 补充弹药（从外部调用）
+func refill_ammo() -> void:
+	player_stats.refill_ammo()
+
+# 获取属性系统（用于外部访问）
+func get_stats() -> PlayerStats:
+	return player_stats
