@@ -400,13 +400,33 @@ func update_mouse_aim_target_rotation() -> void:
 		var plane_point: Vector3 = Vector3(player_pos.x, 0, player_pos.z)
 		
 		var denom: float = plane_normal.dot(ray_dir)
-		if abs(denom) > 0.0001:
+		
+		# 修复鼠标高度过高时的朝向反转问题
+		# 只处理指向地面的射线（denom < 0），避免指向天空时的计算错误
+		if denom < -0.0001:
 			var t: float = (plane_normal.dot(plane_point) - plane_normal.dot(ray_from)) / denom
+			
+			# 限制t值在合理范围内，避免鼠标高度过高时计算错误
+			t = clamp(t, 0.1, 1000.0)
+			
 			var hit_point: Vector3 = ray_from + ray_dir * t
 			var direction: Vector3 = (hit_point - player_pos).normalized()
 			
-			mouse_aim_target_rotation = atan2(direction.x, direction.z)
-			# print("鼠标瞄准目标旋转角度: %.1f 度" % rad_to_deg(mouse_aim_target_rotation))
+			# 确保方向向量有效且朝向正确
+			if direction.length() > 0.1:
+				mouse_aim_target_rotation = atan2(direction.x, direction.z)
+			else:
+				# 如果方向向量无效，使用相机方向作为备用
+				var camera_forward: Vector3 = -camera_camera.global_transform.basis.z
+				camera_forward.y = 0
+				camera_forward = camera_forward.normalized()
+				mouse_aim_target_rotation = atan2(camera_forward.x, camera_forward.z)
+		else:
+			# 如果射线指向天空或与地面平行，使用相机方向
+			var camera_forward: Vector3 = -camera_camera.global_transform.basis.z
+			camera_forward.y = 0
+			camera_forward = camera_forward.normalized()
+			mouse_aim_target_rotation = atan2(camera_forward.x, camera_forward.z)
 
 # 计算射击目标位置
 func calculate_shoot_target() -> Vector3:
