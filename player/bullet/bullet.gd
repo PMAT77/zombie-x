@@ -39,7 +39,7 @@ func _physics_process(delta: float) -> void:
 	# 如果子弹存活时间结束，触发爆炸
 	if time_alive < 0.0:
 		hit = true
-		explode.rpc()
+		explode()
 	
 	# 计算子弹位移（沿Z轴负方向移动）
 	var displacement: Vector3 = -delta * BULLET_VELOCITY * transform.basis.z
@@ -52,12 +52,12 @@ func _physics_process(delta: float) -> void:
 		var collider: Node3D = col.get_collider() as Node3D
 		# 如果碰撞对象有hit方法，调用它（例如击中敌人）
 		if collider and collider.has_method(&"hit"):
-			collider.hit.rpc()
+			collider.hit()
 		
 		# 禁用碰撞检测，避免重复碰撞
 		collision_shape.disabled = true
 		# 远程调用爆炸函数
-		explode.rpc()
+		explode()
 		# 标记为已击中
 		hit = true
 

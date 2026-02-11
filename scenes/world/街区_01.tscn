@@ -1,0 +1,5 @@
+[gd_scene load_steps=2 format=3 uid="uid://bc4smf12jjqqs"]
+
+[ext_resource type="PackedScene" uid="uid://c0egqmhfihapv" path="res://assets/building/街区_01/街区_01.glb" id="1_rwa7v"]
+
+[node name="街区_01" instance=ExtResource("1_rwa7v")]
