@@ -168,6 +168,7 @@ func handle_aiming_state(delta: float) -> void:
 	
 	# 键盘控制模式下使用鼠标方向，鼠标控制模式下使用相机方向
 	if player_input.camera_mode == player_input.CameraMode.KEYBOARD_CONTROL:
+		# 需要额外的PI修正来正确对齐人物朝向
 		var corrected_rotation: float = player_input.mouse_aim_target_rotation + PI
 		var mouse_direction: Vector3 = Vector3(sin(corrected_rotation), 0, cos(corrected_rotation))
 		q_to = Basis.looking_at(mouse_direction, Vector3.UP).get_rotation_quaternion()
@@ -181,47 +182,29 @@ func handle_aiming_state(delta: float) -> void:
 	
 	# 处理射击逻辑
 	if player_input.shooting and fire_cooldown.time_left == 0 and shoot_from:
-		# 检查是否有弹药
-		if not player_stats.consume_ammo():
-			# 没有弹药，不射击
+		if not player_stats.consume_ammo():  # 检查是否有弹药
 			return
 		handle_shooting()
 
 # 计算移动方向
 func calculate_move_direction() -> Vector3:
 	# 获取相机方向向量
-	var camera_basis: Basis = player_input.get_camera_rotation_basis()
-	var camera_x: Vector3 = camera_basis.x
-	var camera_z: Vector3 = camera_basis.z
-	
-	# 标准化相机方向向量（忽略Y轴）
-	camera_x.y = 0
-	camera_x = camera_x.normalized()
-	camera_z.y = 0
-	camera_z = camera_z.normalized()
+	var camera_vectors: Dictionary = player_input.get_normalized_camera_vectors()
 	
 	# 计算移动方向（始终相对于相机方向）
-	return camera_x * motion.x + camera_z * motion.y
+	return camera_vectors["x"] * motion.x + camera_vectors["z"] * motion.y
 
 # 计算侧向移动混合位置（相对于相机方向）
 func calculate_strafe_blend_position() -> Vector2:
 	# 获取相机方向向量
-	var camera_basis: Basis = player_input.get_camera_rotation_basis()
-	var camera_x: Vector3 = camera_basis.x
-	var camera_z: Vector3 = camera_basis.z
-	
-	# 标准化相机方向向量（忽略Y轴）
-	camera_x.y = 0
-	camera_x = camera_x.normalized()
-	camera_z.y = 0
-	camera_z = camera_z.normalized()
+	var camera_vectors: Dictionary = player_input.get_normalized_camera_vectors()
 	
 	# 获取角色当前朝向
 	var character_forward: Vector3 = orientation.basis.z
 	var character_right: Vector3 = orientation.basis.x
 	
 	# 计算移动方向（相对于相机方向）
-	var move_direction: Vector3 = camera_x * motion.x + camera_z * motion.y
+	var move_direction: Vector3 = camera_vectors["x"] * motion.x + camera_vectors["z"] * motion.y
 	
 	# 将移动方向投影到角色的前后和左右方向
 	var forward_component: float = move_direction.dot(character_forward)

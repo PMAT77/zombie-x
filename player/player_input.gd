@@ -286,6 +286,21 @@ func get_camera_base_quaternion() -> Quaternion:
 func get_camera_rotation_basis() -> Basis:
 	return camera_rot.global_transform.basis
 
+# 获取标准化的相机方向向量
+func get_normalized_camera_vectors() -> Dictionary:
+	var camera_basis: Basis = get_camera_rotation_basis()
+	var camera_x: Vector3 = camera_basis.x
+	var camera_z: Vector3 = camera_basis.z
+	
+	# 标准化相机方向向量（忽略Y轴）
+	camera_x.y = 0
+	camera_z.y = 0
+	
+	return {
+		"x": camera_x.normalized(),
+		"z": camera_z.normalized()
+	}
+
 # 跳跃函数
 func jump() -> void:
 	jumping = true
@@ -356,8 +371,7 @@ func handle_smooth_distance_change(delta: float) -> void:
 		
 		if distance_change_progress >= 1.0:
 			spring_arm.spring_length = target_camera_distance
-			is_distance_changing = false
-			# print("相机距离调整完成: %.1f" % spring_arm.spring_length)
+			is_distance_changing = false 
 
 # 处理自动模式切换检测
 func handle_auto_mode_switch() -> void:
@@ -390,43 +404,39 @@ func handle_smooth_height_change(delta: float) -> void:
 
 # 更新鼠标瞄准时的目标人物旋转角度
 func update_mouse_aim_target_rotation() -> void:
-	if camera_camera and get_parent():
-		var mouse_pos: Vector2 = get_viewport().get_mouse_position()
-		var ray_from = camera_camera.project_ray_origin(mouse_pos)
-		var ray_dir = camera_camera.project_ray_normal(mouse_pos)
+	if not camera_camera or not get_parent():
+		return
+	
+	var mouse_pos: Vector2 = get_viewport().get_mouse_position()
+	var ray_from = camera_camera.project_ray_origin(mouse_pos)
+	var ray_dir = camera_camera.project_ray_normal(mouse_pos)
+	var player_pos: Vector3 = get_parent().global_transform.origin
+	
+	# 获取相机方向作为备用
+	var camera_forward: Vector3 = -camera_camera.global_transform.basis.z
+	camera_forward.y = 0
+	camera_forward = camera_forward.normalized()
+	
+	var plane_normal: Vector3 = Vector3.UP
+	var plane_point: Vector3 = Vector3(player_pos.x, 0, player_pos.z)
+	var denom: float = plane_normal.dot(ray_dir)
+	
+	# 修复鼠标高度过高时的朝向反转问题
+	# 只处理指向地面的射线（denom < 0），避免指向天空时的计算错误
+	if denom < -0.0001:
+		var t: float = clamp((plane_normal.dot(plane_point) - plane_normal.dot(ray_from)) / denom, 0.1, 1000.0)
+		var hit_point: Vector3 = ray_from + ray_dir * t
+		var direction: Vector3 = (hit_point - player_pos).normalized()
 		
-		var player_pos: Vector3 = get_parent().global_transform.origin
-		var plane_normal: Vector3 = Vector3.UP
-		var plane_point: Vector3 = Vector3(player_pos.x, 0, player_pos.z)
-		
-		var denom: float = plane_normal.dot(ray_dir)
-		
-		# 修复鼠标高度过高时的朝向反转问题
-		# 只处理指向地面的射线（denom < 0），避免指向天空时的计算错误
-		if denom < -0.0001:
-			var t: float = (plane_normal.dot(plane_point) - plane_normal.dot(ray_from)) / denom
-			
-			# 限制t值在合理范围内，避免鼠标高度过高时计算错误
-			t = clamp(t, 0.1, 1000.0)
-			
-			var hit_point: Vector3 = ray_from + ray_dir * t
-			var direction: Vector3 = (hit_point - player_pos).normalized()
-			
-			# 确保方向向量有效且朝向正确
-			if direction.length() > 0.1:
-				mouse_aim_target_rotation = atan2(direction.x, direction.z)
-			else:
-				# 如果方向向量无效，使用相机方向作为备用
-				var camera_forward: Vector3 = -camera_camera.global_transform.basis.z
-				camera_forward.y = 0
-				camera_forward = camera_forward.normalized()
-				mouse_aim_target_rotation = atan2(camera_forward.x, camera_forward.z)
+		# 确保方向向量有效且朝向正确
+		if direction.length() > 0.1:
+			mouse_aim_target_rotation = atan2(direction.x, direction.z)
 		else:
-			# 如果射线指向天空或与地面平行，使用相机方向
-			var camera_forward: Vector3 = -camera_camera.global_transform.basis.z
-			camera_forward.y = 0
-			camera_forward = camera_forward.normalized()
+			# 如果方向向量无效，使用相机方向作为备用
 			mouse_aim_target_rotation = atan2(camera_forward.x, camera_forward.z)
+	else:
+		# 如果射线指向天空或与地面平行，使用相机方向
+		mouse_aim_target_rotation = atan2(camera_forward.x, camera_forward.z)
 
 # 计算射击目标位置
 func calculate_shoot_target() -> Vector3:
