@@ -62,6 +62,11 @@ var target_y_rotation: float = 0.0        # 目标Y轴旋转角度
 var is_rotating: bool = false            # 是否正在旋转
 var rotation_progress: float = 0.0       # 旋转进度（0-1）
 
+# 相机X轴角度控制变量（键盘模式）
+var target_x_rotation: float = 0.0        # 目标X轴旋转角度
+var is_x_rotating: bool = false          # 是否正在调整X轴角度
+var x_rotation_progress: float = 0.0      # X轴角度调整进度（0-1）
+
 # 相机距离控制变量
 var target_camera_distance: float = 2.4   # 目标相机距离（默认2.4）
 var is_distance_changing: bool = false   # 是否正在调整距离
@@ -140,6 +145,8 @@ func update_timers(delta: float) -> void:
 func handle_keyboard_mode(delta: float) -> void:
 	if is_rotating:
 		handle_smooth_rotation(delta)
+	if is_x_rotating:
+		handle_smooth_x_rotation(delta)
 	
 	handle_keyboard_camera_rotation()
 	
@@ -223,7 +230,7 @@ func handle_fall_effect() -> void:
 
 # 键盘控制模式下的相机旋转输入处理
 func handle_keyboard_camera_rotation() -> void:
-	if keyboard_rotation_cooldown <= 0 and not is_rotating:
+	if keyboard_rotation_cooldown <= 0:
 		if Input.is_action_just_pressed("rotate_left"):
 			start_smooth_rotation(-KEYBOARD_ROTATION_ANGLE)
 			keyboard_rotation_cooldown = KEYBOARD_ROTATION_COOLDOWN_TIME
@@ -235,9 +242,7 @@ func handle_keyboard_camera_rotation() -> void:
 func start_smooth_rotation(angle: float) -> void:
 	target_y_rotation = camera_base.rotation.y + angle
 	rotation_progress = 0.0
-	is_rotating = true
-	
-	# print("开始平滑旋转: 从 %.1f 度到 %.1f 度" % [rad_to_deg(camera_base.rotation.y), rad_to_deg(target_y_rotation)])
+	is_rotating = true 
 
 # 处理平滑旋转
 func handle_smooth_rotation(delta: float) -> void:
@@ -250,8 +255,20 @@ func handle_smooth_rotation(delta: float) -> void:
 		
 		if rotation_progress >= 1.0:
 			camera_base.rotation.y = target_y_rotation
-			is_rotating = false
-			# print("旋转完成: %.1f 度" % rad_to_deg(camera_base.rotation.y))
+			is_rotating = false 
+
+# 处理相机X轴角度平滑过渡
+func handle_smooth_x_rotation(delta: float) -> void:
+	if camera_rot:
+		x_rotation_progress += delta * KEYBOARD_ROTATION_SMOOTH_SPEED
+		var t: float = ease_out_cubic(clamp(x_rotation_progress, 0.0, 1.0))
+		var current_rotation: float = lerp(camera_rot.rotation.x, target_x_rotation, t)
+		
+		camera_rot.rotation.x = current_rotation
+		
+		if x_rotation_progress >= 1.0:
+			camera_rot.rotation.x = target_x_rotation
+			is_x_rotating = false
 
 # 缓出三次方函数（easeOutCubic）
 func ease_out_cubic(t: float) -> float:
@@ -320,7 +337,13 @@ func switch_camera_mode(new_mode: CameraMode) -> void:
 	if camera_mode != new_mode:
 		camera_mode = new_mode
 		update_mouse_mode()
-		reset_rotation_state() 
+		reset_rotation_state()
+		
+		# 切换到键盘控制模式时，平滑过渡相机X轴角度到25度
+		if new_mode == CameraMode.KEYBOARD_CONTROL and camera_rot:
+			target_x_rotation = deg_to_rad(25.0)
+			is_x_rotating = true
+			x_rotation_progress = 0.0 
 
 # 更新鼠标模式
 func update_mouse_mode() -> void:
