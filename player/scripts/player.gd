@@ -22,11 +22,14 @@ const MIN_AIRBORNE_TIME: float = 0.1
 const JUMP_SPEED: float = 5.0
 
 # 角色状态变量
-var airborne_time: float = 100.0  # 记录玩家在空中的时间
+var airborne_time: float = 50.0  # 记录玩家在空中的时间
 var orientation := Transform3D()  # 角色方向变换，用于控制角色朝向
 var root_motion := Transform3D()  # 根运动变换，从动画中提取的运动数据
 var motion := Vector2()           # 移动向量，存储玩家的移动方向
 var current_animation := Animations.WALK  # 当前动画状态
+
+# 玩家属性系统
+var player_stats: PlayerStats = PlayerStats.new()
 
 # 初始位置 - 用于玩家重生
 @onready var initial_position: Vector3 = transform.origin
@@ -44,9 +47,6 @@ var current_animation := Animations.WALK  # 当前动画状态
 @onready var sound_effect_land: AudioStreamPlayer = sound_effects.get_node_or_null(^"Land")
 @onready var sound_effect_shoot: AudioStreamPlayer = sound_effects.get_node_or_null(^"Shoot")
 @onready var sound_effect_reload: AudioStreamPlayer = sound_effects.get_node_or_null(^"Reload")
-
-# 玩家属性系统
-var player_stats: PlayerStats = PlayerStats.new()
 
 # 节点准备完成时调用
 func _ready() -> void:
@@ -295,6 +295,9 @@ func shoot() -> void:
 	if muzzle_particle:
 		muzzle_particle.restart()
 		muzzle_particle.emitting = true
+	
+	# 触发动态准星射击效果
+	player_input.trigger_crosshair_shoot()
 	
 	# 开始冷却并播放音效
 	if fire_cooldown:

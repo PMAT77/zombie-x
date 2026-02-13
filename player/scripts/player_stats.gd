@@ -11,7 +11,7 @@ var health_regen: float = 0.0         # 生命值恢复速度（每秒）
 
 # 攻击属性
 var attack_power: float = 10.0          # 基础攻击力
-var attack_speed: float = 1.0           # 攻击速度（攻击间隔的倒数）
+var attack_speed: float = 0.01           # 攻击速度（攻击间隔的倒数）
 var critical_chance: float = 0.05        # 暴击概率（0-1）
 var critical_damage: float = 1.5          # 暴击伤害倍数
 

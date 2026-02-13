@@ -81,7 +81,7 @@ var mouse_aim_target_rotation: float = 0.0  # 鼠标瞄准时的目标人物旋�
 
 # 相机节点引用
 @export var camera_animation: AnimationPlayer  # 相机动画播放器
-@export var crosshair: TextureRect             # 准星UI
+@export var dynamic_crosshair: DynamicCrosshair  # 动态准星UI
 @export var camera_base: Node3D                # 相机基础节点（控制Y轴旋转）
 @export var camera_rot: Node3D                 # 相机旋转节点（控制X轴旋转）
 @export var camera_camera: Camera3D            # 相机组件
@@ -97,6 +97,9 @@ func _ready() -> void:
 		target_y_rotation = camera_base.rotation.y
 		target_camera_distance = spring_arm.spring_length
 		target_camera_height = camera_base.position.y
+	
+	if dynamic_crosshair:
+		dynamic_crosshair.set_keyboard_mode(camera_mode == CameraMode.KEYBOARD_CONTROL)
 
 # 每帧处理函数
 func _process(delta: float) -> void:
@@ -122,6 +125,9 @@ func _process(delta: float) -> void:
 	handle_jump_input()
 	handle_reload_input()
 	handle_fall_effect()
+	
+	# 更新动态准星状态
+	update_dynamic_crosshair()
 
 # 更新计时器
 func update_timers(delta: float) -> void:
@@ -314,8 +320,7 @@ func switch_camera_mode(new_mode: CameraMode) -> void:
 	if camera_mode != new_mode:
 		camera_mode = new_mode
 		update_mouse_mode()
-		reset_rotation_state()
-		# print("相机模式已切换至: %s" % ("鼠标控制" if camera_mode == CameraMode.MOUSE_CONTROL else "键盘控制"))
+		reset_rotation_state() 
 
 # 更新鼠标模式
 func update_mouse_mode() -> void:
@@ -399,8 +404,7 @@ func handle_smooth_height_change(delta: float) -> void:
 		
 		if height_change_progress >= 1.0:
 			camera_base.position.y = target_camera_height
-			is_height_changing = false
-			# print("相机高度调整完成: %.1f" % camera_base.position.y)
+			is_height_changing = false 
 
 # 更新鼠标瞄准时的目标人物旋转角度
 func update_mouse_aim_target_rotation() -> void:
@@ -440,12 +444,10 @@ func update_mouse_aim_target_rotation() -> void:
 
 # 计算射击目标位置
 func calculate_shoot_target() -> Vector3:
-	var shoot_pos: Vector2
+	var shoot_pos: Vector2 
 	
 	if camera_mode == CameraMode.KEYBOARD_CONTROL:
 		shoot_pos = get_viewport().get_mouse_position()
-	elif crosshair:
-		shoot_pos = crosshair.position + crosshair.size * 0.5
 	else:
 		shoot_pos = get_viewport().size * 0.5
 	
@@ -458,3 +460,35 @@ func calculate_shoot_target() -> Vector3:
 		return ray_from + ray_dir * 1000.0
 	else:
 		return col.position
+
+# 更新动态准星状态
+func update_dynamic_crosshair() -> void:
+	if not dynamic_crosshair:
+		return
+	
+	dynamic_crosshair.set_aiming(aiming)
+	dynamic_crosshair.set_moving(motion.length() > 0.1)
+	var is_kb_mode := camera_mode == CameraMode.KEYBOARD_CONTROL
+	dynamic_crosshair.set_keyboard_mode(is_kb_mode)
+	
+	# 鼠标控制模式下，未瞄准时不显示准星
+	if is_kb_mode:
+		dynamic_crosshair.set_visibility(true)
+	else:
+		dynamic_crosshair.set_visibility(aiming)
+
+# 触发准星射击效果
+func trigger_crosshair_shoot() -> void:
+	if dynamic_crosshair:
+		dynamic_crosshair.trigger_shoot()
+
+# 设置准星武器参数
+func set_crosshair_weapon_params(h_recoil: float, v_recoil: float, accuracy: float) -> void:
+	if dynamic_crosshair:
+		dynamic_crosshair.set_weapon_params(h_recoil, v_recoil, accuracy)
+
+# 获取准星扩散半径
+func get_crosshair_spread() -> float:
+	if dynamic_crosshair:
+		return dynamic_crosshair.get_spread_radius()
+	return 0.0
