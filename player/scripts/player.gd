@@ -47,6 +47,7 @@ var player_stats: PlayerStats = PlayerStats.new()
 @onready var sound_effect_land: AudioStreamPlayer = sound_effects.get_node_or_null(^"Land")
 @onready var sound_effect_shoot: AudioStreamPlayer = sound_effects.get_node_or_null(^"Shoot")
 @onready var sound_effect_reload: AudioStreamPlayer = sound_effects.get_node_or_null(^"Reload")
+@onready var world_ui_circle_progress: WorldUICircleProgress = $PlayerModel/WorldUICircleProgress
 
 # 节点准备完成时调用
 func _ready() -> void:
@@ -150,9 +151,8 @@ func handle_jump_input() -> void:
 
 # 处理换弹输入
 func handle_reload_input() -> void:
-	if player_input.reloading:
+	if Input.is_action_just_pressed("reload"):
 		reload()
-		player_input.reloading = false
 
 # 处理空中动画
 func handle_airborne_animation() -> void:
@@ -182,6 +182,10 @@ func handle_aiming_state(delta: float) -> void:
 	
 	# 处理射击逻辑
 	if player_input.shooting and fire_cooldown.time_left == 0 and shoot_from:
+		# 如果正在换弹，不允许射击
+		if(is_reloading()):
+			return
+
 		if not player_stats.consume_ammo():  # 检查是否有弹药
 			return
 		handle_shooting()
@@ -310,21 +314,42 @@ func shoot() -> void:
 
 # 换弹函数 - 播放换弹效果和音效
 func reload() -> void:
-	# 检查是否需要换弹（弹药不满时）
 	if player_stats.current_ammo >= player_stats.max_ammo:
+		return 
+	 
+	if is_reloading():
 		return
 	
-	# 补充弹药
-	player_stats.refill_ammo()
+	start_reload()
 	
-	# 安全地播放换弹音效（如果存在）
+	if world_ui_circle_progress:
+		world_ui_circle_progress.show_progress(player_stats.reload_time)
+	
 	if sound_effect_reload and sound_effect_reload.stream:
-		sound_effect_reload.play() 
+		sound_effect_reload.play()
 	
-	# 添加轻微的相机震动
 	add_camera_shake_trauma(0.15)
 	
+	await get_tree().create_timer(player_stats.reload_time).timeout
+	
+	player_stats.refill_ammo()
+	end_reload() 
+	
 	print("换弹完成，当前弹药: %d/%d" % [player_stats.current_ammo, player_stats.max_ammo])
+
+# 开始换弹
+func start_reload() -> void:
+	player_input.reloading = true
+	print("开始换弹")
+
+# 结束换弹
+func end_reload() -> void:
+	player_input.reloading = false
+	print("结束换弹")
+
+# 检查是否正在换弹
+func is_reloading() -> bool:
+	return player_input.reloading
 
 # 被击中函数 - 处理玩家被击中时的效果
 func hit() -> void:

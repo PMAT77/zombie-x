@@ -14,10 +14,12 @@ enum CameraMode {
 const CAMERA_CONTROLLER_ROTATION_SPEED: float = 3.0    # 控制器相机旋转速度
 const CAMERA_MOUSE_ROTATION_SPEED: float = 0.001      # 鼠标相机旋转速度
 const KEYBOARD_ROTATION_ANGLE: float = deg_to_rad(90.0)  # 键盘旋转角度（每次按下旋转90度）
-const KEYBOARD_ROTATION_SMOOTH_SPEED: float = 1.0     # 键盘旋转平滑过渡速度
+const KEYBOARD_ROTATION_SMOOTH_SPEED: float = 0.5     # 键盘旋转平滑过渡速度
 const KEYBOARD_ROTATION_COOLDOWN_TIME: float = 0.05   # 键盘旋转冷却时间
 
 # 相机角度限制
+# 俯视角相机固定角度
+const CAMERA_X_ROT_CONSTRAINT: float = deg_to_rad(20.0)  # 相机X轴旋转约束角度（避免相机翻转）
 const CAMERA_X_ROT_MIN: float = deg_to_rad(-89.9)     # 相机X轴旋转最小角度（避免相机翻转）
 const CAMERA_X_ROT_MAX: float = deg_to_rad(70.0)      # 相机X轴旋转最大角度
 
@@ -217,8 +219,8 @@ func handle_jump_input() -> void:
 
 # 处理换弹输入
 func handle_reload_input() -> void:
-	if Input.is_action_just_pressed("reload"):
-		reload()
+	if Input.is_action_just_pressed("reload"): 
+		get_parent().reload()
 
 # 处理坠落效果
 func handle_fall_effect() -> void:
@@ -341,7 +343,7 @@ func switch_camera_mode(new_mode: CameraMode) -> void:
 		
 		# 切换到键盘控制模式时，平滑过渡相机X轴角度到25度
 		if new_mode == CameraMode.KEYBOARD_CONTROL and camera_rot:
-			target_x_rotation = deg_to_rad(25.0)
+			target_x_rotation = CAMERA_X_ROT_CONSTRAINT
 			is_x_rotating = true
 			x_rotation_progress = 0.0 
 

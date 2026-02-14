@@ -32,6 +32,7 @@ var exp_to_next_level: float = 100.0     # 升到下一级所需经验
 var max_ammo: int = 30                  # 最大弹药量
 var current_ammo: int = 30                # 当前弹药量
 var ammo_regen_time: float = 2.0         # 弹药恢复时间（秒）
+var reload_time: float = 1.0           # 换弹时间（秒）
 
 # 状态标志
 var is_dead: bool = false                    # 是否死亡
