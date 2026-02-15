@@ -22,7 +22,7 @@ func show_progress(duration: float) -> void:
 		progress_tween.kill()
 	
 	fade_tween = create_tween()
-	fade_tween.tween_property(self, "modulate:a", 1.0, 0.3)
+	fade_tween.tween_property(self, "modulate:a", 1.0, GameConstants.UI_FADE_DURATION)
 	fade_tween.tween_callback(func():  
 		is_bar_visible = true 
 		start_progress_tween()
@@ -40,7 +40,7 @@ func hide_progress() -> void:
 		fade_tween.kill()
 	
 	fade_tween = create_tween()
-	fade_tween.tween_property(self, "modulate:a", 0.0, 0.3)
+	fade_tween.tween_property(self, "modulate:a", 0.0, GameConstants.UI_FADE_DURATION)
 	fade_tween.tween_callback(func(): 
 		is_bar_visible = false 
 	)

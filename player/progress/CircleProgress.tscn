@@ -1,4 +1,4 @@
-[gd_scene load_steps=6 format=3 uid="uid://bguuafpd6h8h6"]
+[gd_scene format=3 uid="uid://bguuafpd6h8h6"]
 
 [ext_resource type="Texture2D" uid="uid://dqsa8ghobtb6j" path="res://player/progress/circle.png" id="1_nta0x"]
 [ext_resource type="Script" uid="uid://bs7x7ix01mryt" path="res://player/progress/circle_progress.gd" id="2_t8epa"]
@@ -40,12 +40,12 @@ _data = {
 &"circle": SubResource("Animation_nta0x")
 }
 
-[node name="CircleProgress" type="Control"]
+[node name="CircleProgress" type="Control" unique_id=124785288]
 layout_mode = 3
 anchors_preset = 0
 script = ExtResource("2_t8epa")
 
-[node name="TextureProgressBar" type="TextureProgressBar" parent="."]
+[node name="TextureProgressBar" type="TextureProgressBar" parent="." unique_id=756749728]
 layout_mode = 0
 offset_right = 283.0
 offset_bottom = 283.0
@@ -56,8 +56,6 @@ texture_progress = ExtResource("1_nta0x")
 tint_under = Color(0.63375676, 0.6337568, 0.63375676, 1)
 tint_progress = Color(0.67058825, 1, 0.47843137, 1)
 
-[node name="AnimationPlayer" type="AnimationPlayer" parent="."]
-libraries = {
-&"": SubResource("AnimationLibrary_1ehpl")
-}
-autoplay = "RESET"
+[node name="AnimationPlayer" type="AnimationPlayer" parent="." unique_id=258151255]
+libraries/ = SubResource("AnimationLibrary_1ehpl")
+autoplay = &"RESET"

@@ -12,15 +12,6 @@ enum Animations {
 	WALK,       # 行走动画
 }
 
-# 运动插值速度 - 控制移动的平滑度
-const MOTION_INTERPOLATE_SPEED: float = 10.0
-# 旋转插值速度 - 控制角色旋转的平滑度
-const ROTATION_INTERPOLATE_SPEED: float = 10.0
-# 最小空中时间 - 用于判断是否在空中
-const MIN_AIRBORNE_TIME: float = 0.1
-# 跳跃速度 - 控制跳跃的高度
-const JUMP_SPEED: float = 5.0
-
 # 角色状态变量
 var airborne_time: float = 50.0  # 记录玩家在空中的时间
 var orientation := Transform3D()  # 角色方向变换，用于控制角色朝向
@@ -61,6 +52,10 @@ func _ready() -> void:
 	player_stats.level_up.connect(_on_level_up)
 	player_stats.exp_gained.connect(_on_exp_gained)
 	player_stats.ammo_changed.connect(_on_ammo_changed)
+	
+	# 注册到游戏管理器
+	if GameManager:
+		GameManager.register_player(self)
 
 # 物理处理函数 - 每帧调用
 func _physics_process(delta: float) -> void:
@@ -104,7 +99,7 @@ func animate(anim: int, _delta: float) -> void:
 # 处理玩家的移动、跳跃、射击等输入
 func apply_input(delta: float) -> void:
 	# 平滑插值移动向量
-	motion = motion.lerp(player_input.motion, MOTION_INTERPOLATE_SPEED * delta) 
+	motion = motion.lerp(player_input.motion, GameConstants.MOTION_INTERPOLATE_SPEED * delta) 
 	
 	# 更新空中状态
 	update_airborne_state(delta)
@@ -139,13 +134,13 @@ func update_airborne_state(delta: float) -> void:
 
 # 判断是否在空中
 func is_airborne() -> bool:
-	return airborne_time > MIN_AIRBORNE_TIME
+	return airborne_time > GameConstants.MIN_AIRBORNE_TIME
 
 # 处理跳跃输入
 func handle_jump_input() -> void:
 	if not is_airborne() and player_input.jumping:
-		velocity.y = JUMP_SPEED
-		airborne_time = MIN_AIRBORNE_TIME
+		velocity.y = GameConstants.JUMP_SPEED
+		airborne_time = GameConstants.MIN_AIRBORNE_TIME
 		jump()
 	player_input.jumping = false
 
@@ -172,10 +167,10 @@ func handle_aiming_state(delta: float) -> void:
 		var corrected_rotation: float = player_input.mouse_aim_target_rotation + PI
 		var mouse_direction: Vector3 = Vector3(sin(corrected_rotation), 0, cos(corrected_rotation))
 		q_to = Basis.looking_at(mouse_direction, Vector3.UP).get_rotation_quaternion()
-		orientation.basis = Basis(q_from.slerp(q_to, delta * player_input.MOUSE_AIM_ROTATION_SPEED))
+		orientation.basis = Basis(q_from.slerp(q_to, delta * GameConstants.MOUSE_AIM_ROTATION_SPEED))
 	else:
 		q_to = player_input.get_camera_base_quaternion()
-		orientation.basis = Basis(q_from.slerp(q_to, delta * ROTATION_INTERPOLATE_SPEED))
+		orientation.basis = Basis(q_from.slerp(q_to, delta * GameConstants.ROTATION_INTERPOLATE_SPEED))
 	
 	animate(Animations.STRAFE, delta)
 	update_root_motion()
@@ -226,7 +221,7 @@ func handle_walking_state(delta: float) -> void:
 	if move_direction.length() > 0.001:
 			var q_from: Quaternion = orientation.basis.get_rotation_quaternion()
 			var q_to: Quaternion = Basis.looking_at(move_direction).get_rotation_quaternion()
-			orientation.basis = Basis(q_from.slerp(q_to, delta * ROTATION_INTERPOLATE_SPEED))
+			orientation.basis = Basis(q_from.slerp(q_to, delta * GameConstants.ROTATION_INTERPOLATE_SPEED))
 	
 	animate(Animations.WALK, delta)
 	update_root_motion()
@@ -272,7 +267,7 @@ func handle_shooting() -> void:
 
 # 处理坠落重置
 func handle_fall_reset() -> void:
-	if transform.origin.y < -40.0:
+	if transform.origin.y < GameConstants.FALL_RESET_HEIGHT:
 		transform.origin = initial_position
 
 # 跳跃函数 - 播放跳跃动画和音效
@@ -309,8 +304,12 @@ func shoot() -> void:
 	if sound_effect_shoot and sound_effect_shoot.stream:
 		sound_effect_shoot.play()
 	
+	# 发送射击事件
+	if EventBus:
+		EventBus.emit_player_shoot()
+	
 	# 添加相机震动
-	add_camera_shake_trauma(0.35)
+	add_camera_shake_trauma(GameConstants.CROSSHAIR_SHOOT_TRAUMA)
 
 # 换弹函数 - 播放换弹效果和音效
 func reload() -> void:
@@ -321,6 +320,8 @@ func reload() -> void:
 		return
 	
 	start_reload()
+	if EventBus:
+		EventBus.emit_player_reload_start()
 	
 	if world_ui_circle_progress:
 		world_ui_circle_progress.show_progress(player_stats.reload_time)
@@ -328,12 +329,14 @@ func reload() -> void:
 	if sound_effect_reload and sound_effect_reload.stream:
 		sound_effect_reload.play()
 	
-	add_camera_shake_trauma(0.15)
+	add_camera_shake_trauma(GameConstants.RELOAD_TRAUMA)
 	
 	await get_tree().create_timer(player_stats.reload_time).timeout
 	
 	player_stats.refill_ammo()
 	end_reload() 
+	if EventBus:
+		EventBus.emit_player_reload_complete()
 	
 	print("换弹完成，当前弹药: %d/%d" % [player_stats.current_ammo, player_stats.max_ammo])
 
@@ -353,7 +356,7 @@ func is_reloading() -> bool:
 
 # 被击中函数 - 处理玩家被击中时的效果
 func hit() -> void:
-	add_camera_shake_trauma(0.75)
+	add_camera_shake_trauma(GameConstants.HIT_TRAUMA)
 
 # 添加相机震动函数 - 控制相机震动效果
 func add_camera_shake_trauma(amount: float) -> void:

@@ -5,34 +5,34 @@ class_name PlayerStats
 extends RefCounted
 
 # 生命属性
-var max_health: float = 100.0        # 最大生命值
-var current_health: float = 100.0      # 当前生命值
-var health_regen: float = 0.0         # 生命值恢复速度（每秒）
+var max_health: float = GameConstants.DEFAULT_MAX_HEALTH        # 最大生命值
+var current_health: float = GameConstants.DEFAULT_MAX_HEALTH      # 当前生命值
+var health_regen: float = GameConstants.DEFAULT_HEALTH_REGEN         # 生命值恢复速度（每秒）
 
 # 攻击属性
-var attack_power: float = 10.0          # 基础攻击力
-var attack_speed: float = 0.01           # 攻击速度（攻击间隔的倒数）
-var critical_chance: float = 0.05        # 暴击概率（0-1）
-var critical_damage: float = 1.5          # 暴击伤害倍数
+var attack_power: float = GameConstants.DEFAULT_ATTACK_POWER          # 基础攻击力
+var attack_speed: float = GameConstants.DEFAULT_ATTACK_SPEED           # 攻击速度（攻击间隔的倒数）
+var critical_chance: float = GameConstants.DEFAULT_CRITICAL_CHANCE        # 暴击概率（0-1）
+var critical_damage: float = GameConstants.DEFAULT_CRITICAL_DAMAGE          # 暴击伤害倍数
 
 # 防御属性
-var defense: float = 0.0                # 基础防御力
-var damage_reduction: float = 0.0        # 伤害减免（0-1）
+var defense: float = GameConstants.DEFAULT_DEFENSE                # 基础防御力
+var damage_reduction: float = GameConstants.DEFAULT_DAMAGE_REDUCTION        # 伤害减免（0-1）
 
 # 移动属性
-var movement_speed: float = 1.0          # 移动速度倍数
-var jump_height: float = 1.0             # 跳跃高度倍数
+var movement_speed: float = GameConstants.DEFAULT_MOVEMENT_SPEED          # 移动速度倍数
+var jump_height: float = GameConstants.DEFAULT_JUMP_HEIGHT             # 跳跃高度倍数
 
 # 经验和等级
-var level: int = 1                      # 当前等级
-var current_exp: float = 0.0             # 当前经验值
-var exp_to_next_level: float = 100.0     # 升到下一级所需经验
+var level: int = GameConstants.DEFAULT_STARTING_LEVEL                      # 当前等级
+var current_exp: float = GameConstants.DEFAULT_STARTING_EXP             # 当前经验值
+var exp_to_next_level: float = GameConstants.DEFAULT_EXP_BASE     # 升到下一级所需经验
 
 # 资源属性
-var max_ammo: int = 30                  # 最大弹药量
-var current_ammo: int = 30                # 当前弹药量
-var ammo_regen_time: float = 2.0         # 弹药恢复时间（秒）
-var reload_time: float = 1.0           # 换弹时间（秒）
+var max_ammo: int = GameConstants.DEFAULT_MAX_AMMO                  # 最大弹药量
+var current_ammo: int = GameConstants.DEFAULT_MAX_AMMO                # 当前弹药量
+var ammo_regen_time: float = GameConstants.DEFAULT_AMMO_REGEN_TIME         # 弹药恢复时间（秒）
+var reload_time: float = GameConstants.DEFAULT_RELOAD_TIME           # 换弹时间（秒）
 
 # 状态标志
 var is_dead: bool = false                    # 是否死亡
@@ -65,7 +65,7 @@ func update(delta: float) -> void:
 
 # 计算到下一级所需经验
 func calculate_exp_to_next_level() -> float:
-	return level * 100.0
+	return level * GameConstants.DEFAULT_EXP_BASE
 
 # 获得经验
 func gain_exp(amount: float) -> void:

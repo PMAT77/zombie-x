@@ -4,11 +4,8 @@
 class_name Bullet
 extends CharacterBody3D
 
-# 子弹飞行速度
-const BULLET_VELOCITY: float = 20.0
-
 # 子弹存活时间 - 避免子弹无限飞行
-var time_alive: float = 5.0
+var time_alive: float = GameConstants.BULLET_MAX_LIFETIME
 # 是否已经击中目标
 var hit: bool = false
 
@@ -42,7 +39,7 @@ func _physics_process(delta: float) -> void:
 		explode()
 	
 	# 计算子弹位移（沿Z轴负方向移动）
-	var displacement: Vector3 = -delta * BULLET_VELOCITY * transform.basis.z
+	var displacement: Vector3 = -delta * GameConstants.BULLET_VELOCITY * transform.basis.z
 	# 移动并检测碰撞
 	var col: KinematicCollision3D = move_and_collide(displacement)
 	

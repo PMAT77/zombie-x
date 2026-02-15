@@ -1,4 +1,4 @@
-[gd_scene load_steps=6 format=3 uid="uid://cxo5lqs8vre3i"]
+[gd_scene format=3 uid="uid://cxo5lqs8vre3i"]
 
 [ext_resource type="PackedScene" uid="uid://cerngmmrhl6xc" path="res://scenes/world/Ground.tscn" id="1_u1xfj"]
 [ext_resource type="PackedScene" uid="uid://cs1k22tdf04k4" path="res://player/Player.tscn" id="2_nha0i"]
@@ -16,16 +16,16 @@ sky = SubResource("Sky_q24mn")
 tonemap_mode = 2
 glow_enabled = true
 
-[node name="Main" type="Node3D"]
+[node name="Main" type="Node3D" unique_id=1614676424]
 
-[node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=1853115937]
 transform = Transform3D(-0.8660254, -0.43301278, 0.25, 0, 0.49999997, 0.86602545, -0.50000006, 0.75, -0.43301266, 0, 0, 0)
 shadow_enabled = true
 
-[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=961295918]
 environment = SubResource("Environment_gyg6b")
 
-[node name="Ground" parent="." instance=ExtResource("1_u1xfj")]
+[node name="Ground" parent="." unique_id=236173871 instance=ExtResource("1_u1xfj")]
 
-[node name="Player" parent="." instance=ExtResource("2_nha0i")]
+[node name="Player" parent="." unique_id=1566058271 instance=ExtResource("2_nha0i")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 17.505383, 0, -11.788686)

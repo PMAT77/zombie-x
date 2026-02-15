@@ -10,39 +10,6 @@ enum CameraMode {
 	KEYBOARD_CONTROL    # 键盘控制模式（Q/E按键旋转）
 }
 
-# 相机控制参数
-const CAMERA_CONTROLLER_ROTATION_SPEED: float = 3.0    # 控制器相机旋转速度
-const CAMERA_MOUSE_ROTATION_SPEED: float = 0.001      # 鼠标相机旋转速度
-const KEYBOARD_ROTATION_ANGLE: float = deg_to_rad(90.0)  # 键盘旋转角度（每次按下旋转90度）
-const KEYBOARD_ROTATION_SMOOTH_SPEED: float = 0.5     # 键盘旋转平滑过渡速度
-const KEYBOARD_ROTATION_COOLDOWN_TIME: float = 0.05   # 键盘旋转冷却时间
-
-# 相机角度限制
-# 俯视角相机固定角度
-const CAMERA_X_ROT_CONSTRAINT: float = deg_to_rad(20.0)  # 相机X轴旋转约束角度（避免相机翻转）
-const CAMERA_X_ROT_MIN: float = deg_to_rad(-89.9)     # 相机X轴旋转最小角度（避免相机翻转）
-const CAMERA_X_ROT_MAX: float = deg_to_rad(70.0)      # 相机X轴旋转最大角度
-
-# 相机距离控制参数
-const CAMERA_DISTANCE_MIN: float = 1.0                 # 相机最小距离
-const CAMERA_DISTANCE_MAX: float = 16.0                # 相机最大距离
-const CAMERA_DISTANCE_STEP: float = 0.4                # 滚轮每次调整的距离步长
-const CAMERA_DISTANCE_SMOOTH_SPEED: float = 4.0        # 相机距离平滑过渡速度
-
-# 相机高度联动参数
-const CAMERA_HEIGHT_MIN: float = 1.6                   # 相机最小高度（对应最小距离）
-const CAMERA_HEIGHT_MAX: float = 4.0                   # 相机最大高度（对应最大距离）
-const CAMERA_HEIGHT_SMOOTH_SPEED: float = 4.0          # 相机高度平滑过渡速度
-
-# 自动模式切换参数
-const AUTO_MODE_SWITCH_THRESHOLD_CLOSE: float = 3.0    # 切换到鼠标控制模式的阈值（距离小于此值）
-const AUTO_MODE_SWITCH_THRESHOLD_FAR: float = 5.0     # 切换到键盘控制模式的阈值（距离大于此值）
-const AUTO_MODE_SWITCH_COOLDOWN: float = 0.5          # 自动模式切换冷却时间
-
-# 瞄准参数
-const MOUSE_AIM_ROTATION_SPEED: float = 5.0            # 键盘模式下瞄准时人物朝向鼠标方向的速度
-const AIM_HOLD_THRESHOLD: float = 0.4                  # 瞄准保持阈值 - 短按切换瞄准，长按保持瞄准
-
 # 相机控制模式
 @export var camera_mode: CameraMode = CameraMode.MOUSE_CONTROL
 
@@ -70,18 +37,18 @@ var is_x_rotating: bool = false          # 是否正在调整X轴角度
 var x_rotation_progress: float = 0.0      # X轴角度调整进度（0-1）
 
 # 相机距离控制变量
-var target_camera_distance: float = 2.4   # 目标相机距离（默认2.4）
+var target_camera_distance: float = GameConstants.DEFAULT_CAMERA_DISTANCE   # 目标相机距离（默认2.4）
 var is_distance_changing: bool = false   # 是否正在调整距离
 var distance_change_progress: float = 0.0 # 距离调整进度（0-1）
 
 # 相机高度控制变量
-var target_camera_height: float = 1.6     # 目标相机高度
+var target_camera_height: float = GameConstants.CAMERA_HEIGHT_MIN     # 目标相机高度
 var is_height_changing: bool = false      # 是否正在调整高度
 var height_change_progress: float = 0.0   # 高度调整进度（0-1）
 
 # 自动模式切换变量
 var auto_mode_switch_cooldown: float = 0.0  # 自动模式切换冷却计时器
-var last_camera_distance: float = 2.4       # 上次检测的相机距离
+var last_camera_distance: float = GameConstants.DEFAULT_CAMERA_DISTANCE       # 上次检测的相机距离
 
 # 键盘控制模式瞄准变量
 var mouse_aim_target_rotation: float = 0.0  # 鼠标瞄准时的目标人物旋转角度
@@ -167,7 +134,7 @@ func handle_camera_rotation(delta: float) -> void:
 		Input.get_action_strength(&"ui_right") - Input.get_action_strength(&"ui_left"),
 		Input.get_action_strength(&"ui_up") - Input.get_action_strength(&"ui_down"))
 	
-	var camera_speed: float = delta * CAMERA_CONTROLLER_ROTATION_SPEED
+	var camera_speed: float = delta * GameConstants.CAMERA_CONTROLLER_ROTATION_SPEED
 	if aiming:
 		camera_speed *= 0.5
 	
@@ -178,7 +145,7 @@ func handle_aiming_logic(delta: float) -> void:
 	var current_aim: bool = false
 	
 	# 短按切换瞄准，长按保持瞄准
-	if Input.is_action_just_released(&"aim") and aiming_timer <= AIM_HOLD_THRESHOLD:
+	if Input.is_action_just_released(&"aim") and aiming_timer <= GameConstants.AIM_HOLD_THRESHOLD:
 		current_aim = true
 		toggled_aim = true
 	else:
@@ -225,20 +192,20 @@ func handle_reload_input() -> void:
 # 处理坠落效果
 func handle_fall_effect() -> void:
 	var player_transform: Transform3D = get_parent().global_transform
-	if player_transform.origin.y < -17.0 and color_rect:
-		color_rect.modulate.a = minf((-17.0 - player_transform.origin.y) / 15.0, 1.0)
+	if player_transform.origin.y < GameConstants.FALL_EFFECT_HEIGHT and color_rect:
+		color_rect.modulate.a = minf((GameConstants.FALL_EFFECT_HEIGHT - player_transform.origin.y) / 15.0, 1.0)
 	elif color_rect:
-		color_rect.modulate.a *= 1.0 - 4.0 * get_process_delta_time()
+		color_rect.modulate.a *= 1.0 - GameConstants.FALL_FADE_SPEED * get_process_delta_time()
 
 # 键盘控制模式下的相机旋转输入处理
 func handle_keyboard_camera_rotation() -> void:
 	if keyboard_rotation_cooldown <= 0:
 		if Input.is_action_just_pressed("rotate_left"):
-			start_smooth_rotation(-KEYBOARD_ROTATION_ANGLE)
-			keyboard_rotation_cooldown = KEYBOARD_ROTATION_COOLDOWN_TIME
+			start_smooth_rotation(-GameConstants.deg_to_rad(GameConstants.KEYBOARD_ROTATION_ANGLE))
+			keyboard_rotation_cooldown = GameConstants.KEYBOARD_ROTATION_COOLDOWN_TIME
 		elif Input.is_action_just_pressed("rotate_right"):
-			start_smooth_rotation(KEYBOARD_ROTATION_ANGLE)
-			keyboard_rotation_cooldown = KEYBOARD_ROTATION_COOLDOWN_TIME
+			start_smooth_rotation(GameConstants.deg_to_rad(GameConstants.KEYBOARD_ROTATION_ANGLE))
+			keyboard_rotation_cooldown = GameConstants.KEYBOARD_ROTATION_COOLDOWN_TIME
 
 # 开始平滑旋转
 func start_smooth_rotation(angle: float) -> void:
@@ -249,8 +216,8 @@ func start_smooth_rotation(angle: float) -> void:
 # 处理平滑旋转
 func handle_smooth_rotation(delta: float) -> void:
 	if camera_base:
-		rotation_progress += delta * KEYBOARD_ROTATION_SMOOTH_SPEED
-		var t: float = ease_out_cubic(clamp(rotation_progress, 0.0, 1.0))
+		rotation_progress += delta * GameConstants.KEYBOARD_ROTATION_SMOOTH_SPEED
+		var t: float = GameConstants.ease_out_cubic(clamp(rotation_progress, 0.0, 1.0))
 		var current_rotation: float = lerp_angle(camera_base.rotation.y, target_y_rotation, t)
 		
 		camera_base.rotation.y = current_rotation
@@ -262,8 +229,8 @@ func handle_smooth_rotation(delta: float) -> void:
 # 处理相机X轴角度平滑过渡
 func handle_smooth_x_rotation(delta: float) -> void:
 	if camera_rot:
-		x_rotation_progress += delta * KEYBOARD_ROTATION_SMOOTH_SPEED
-		var t: float = ease_out_cubic(clamp(x_rotation_progress, 0.0, 1.0))
+		x_rotation_progress += delta * GameConstants.KEYBOARD_ROTATION_SMOOTH_SPEED
+		var t: float = GameConstants.ease_out_cubic(clamp(x_rotation_progress, 0.0, 1.0))
 		var current_rotation: float = lerp(camera_rot.rotation.x, target_x_rotation, t)
 		
 		camera_rot.rotation.x = current_rotation
@@ -272,18 +239,13 @@ func handle_smooth_x_rotation(delta: float) -> void:
 			camera_rot.rotation.x = target_x_rotation
 			is_x_rotating = false
 
-# 缓出三次方函数（easeOutCubic）
-func ease_out_cubic(t: float) -> float:
-	var t2: float = t - 1.0
-	return t2 * t2 * t2 + 1.0
-
 # 输入事件处理函数
 func _input(input_event: InputEvent) -> void:
 	if input_event is InputEventMouseButton:
 		handle_mouse_wheel_input(input_event)
 	
 	if camera_mode == CameraMode.MOUSE_CONTROL and input_event is InputEventMouseMotion:
-		var camera_speed: float = CAMERA_MOUSE_ROTATION_SPEED
+		var camera_speed: float = GameConstants.CAMERA_MOUSE_ROTATION_SPEED
 		if aiming:
 			camera_speed *= 0.75
 		rotate_camera(input_event.screen_relative * camera_speed)
@@ -293,15 +255,15 @@ func rotate_camera(move: Vector2) -> void:
 	if camera_base and camera_rot:
 		camera_base.rotate_y(-move.x)
 		camera_base.orthonormalize()
-		camera_rot.rotation.x = clampf(camera_rot.rotation.x + move.y, CAMERA_X_ROT_MIN, CAMERA_X_ROT_MAX)
+		camera_rot.rotation.x = clampf(camera_rot.rotation.x + move.y, GameConstants.deg_to_rad(GameConstants.CAMERA_X_ROT_MIN), GameConstants.deg_to_rad(GameConstants.CAMERA_X_ROT_MAX))
 
 # 获取瞄准旋转角度
 func get_aim_rotation() -> float:
-	var camera_x_rot: float = clampf(camera_rot.rotation.x, CAMERA_X_ROT_MIN, CAMERA_X_ROT_MAX)
+	var camera_x_rot: float = clampf(camera_rot.rotation.x, GameConstants.deg_to_rad(GameConstants.CAMERA_X_ROT_MIN), GameConstants.deg_to_rad(GameConstants.CAMERA_X_ROT_MAX))
 	if camera_x_rot >= 0.0: # 向上瞄准
-		return -camera_x_rot / CAMERA_X_ROT_MAX
+		return -camera_x_rot / GameConstants.deg_to_rad(GameConstants.CAMERA_X_ROT_MAX)
 	else: # 向下瞄准
-		return camera_x_rot / CAMERA_X_ROT_MIN
+		return camera_x_rot / GameConstants.deg_to_rad(GameConstants.CAMERA_X_ROT_MIN)
 
 # 获取相机基础四元数
 func get_camera_base_quaternion() -> Quaternion:
@@ -343,7 +305,7 @@ func switch_camera_mode(new_mode: CameraMode) -> void:
 		
 		# 切换到键盘控制模式时，平滑过渡相机X轴角度到25度
 		if new_mode == CameraMode.KEYBOARD_CONTROL and camera_rot:
-			target_x_rotation = CAMERA_X_ROT_CONSTRAINT
+			target_x_rotation = GameConstants.deg_to_rad(GameConstants.CAMERA_X_ROT_CONSTRAINT)
 			is_x_rotating = true
 			x_rotation_progress = 0.0 
 
@@ -371,10 +333,10 @@ func handle_mouse_wheel_input(event: InputEventMouseButton) -> void:
 		var new_distance: float = target_camera_distance
 		
 		if event.button_index == MOUSE_BUTTON_WHEEL_UP:
-			new_distance = max(CAMERA_DISTANCE_MIN, target_camera_distance - CAMERA_DISTANCE_STEP)
+			new_distance = max(GameConstants.CAMERA_DISTANCE_MIN, target_camera_distance - GameConstants.CAMERA_DISTANCE_STEP)
 			# print("滚轮向上: 相机距离从 %.1f 调整到 %.1f" % [spring_arm.spring_length, new_distance])
 		elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
-			new_distance = min(CAMERA_DISTANCE_MAX, target_camera_distance + CAMERA_DISTANCE_STEP)
+			new_distance = min(GameConstants.CAMERA_DISTANCE_MAX, target_camera_distance + GameConstants.CAMERA_DISTANCE_STEP)
 			# print("滚轮向下: 相机距离从 %.1f 调整到 %.1f" % [spring_arm.spring_length, new_distance])
 		
 		if new_distance != target_camera_distance:
@@ -383,8 +345,8 @@ func handle_mouse_wheel_input(event: InputEventMouseButton) -> void:
 			distance_change_progress = 0.0
 			
 			# 联动调整相机高度
-			var height_ratio: float = (new_distance - CAMERA_DISTANCE_MIN) / (CAMERA_DISTANCE_MAX - CAMERA_DISTANCE_MIN)
-			target_camera_height = lerp(CAMERA_HEIGHT_MIN, CAMERA_HEIGHT_MAX, height_ratio)
+			var height_ratio: float = (new_distance - GameConstants.CAMERA_DISTANCE_MIN) / (GameConstants.CAMERA_DISTANCE_MAX - GameConstants.CAMERA_DISTANCE_MIN)
+			target_camera_height = lerp(GameConstants.CAMERA_HEIGHT_MIN, GameConstants.CAMERA_HEIGHT_MAX, height_ratio)
 			is_height_changing = true
 			height_change_progress = 0.0
 			
@@ -393,8 +355,8 @@ func handle_mouse_wheel_input(event: InputEventMouseButton) -> void:
 # 处理相机距离平滑调整
 func handle_smooth_distance_change(delta: float) -> void:
 	if spring_arm:
-		distance_change_progress += delta * CAMERA_DISTANCE_SMOOTH_SPEED
-		var t: float = ease_out_cubic(clamp(distance_change_progress, 0.0, 1.0))
+		distance_change_progress += delta * GameConstants.CAMERA_DISTANCE_SMOOTH_SPEED
+		var t: float = GameConstants.ease_out_cubic(clamp(distance_change_progress, 0.0, 1.0))
 		var current_distance: float = lerp(spring_arm.spring_length, target_camera_distance, t)
 		
 		spring_arm.spring_length = current_distance
@@ -411,18 +373,18 @@ func handle_auto_mode_switch() -> void:
 		if abs(current_distance - last_camera_distance) > 0.01:
 			last_camera_distance = current_distance
 			
-			if current_distance < AUTO_MODE_SWITCH_THRESHOLD_CLOSE and camera_mode != CameraMode.MOUSE_CONTROL:
+			if current_distance < GameConstants.AUTO_MODE_SWITCH_THRESHOLD_CLOSE and camera_mode != CameraMode.MOUSE_CONTROL:
 				switch_camera_mode(CameraMode.MOUSE_CONTROL)
-				auto_mode_switch_cooldown = AUTO_MODE_SWITCH_COOLDOWN
-			elif current_distance > AUTO_MODE_SWITCH_THRESHOLD_FAR and camera_mode != CameraMode.KEYBOARD_CONTROL:
+				auto_mode_switch_cooldown = GameConstants.AUTO_MODE_SWITCH_COOLDOWN
+			elif current_distance > GameConstants.AUTO_MODE_SWITCH_THRESHOLD_FAR and camera_mode != CameraMode.KEYBOARD_CONTROL:
 				switch_camera_mode(CameraMode.KEYBOARD_CONTROL)
-				auto_mode_switch_cooldown = AUTO_MODE_SWITCH_COOLDOWN
+				auto_mode_switch_cooldown = GameConstants.AUTO_MODE_SWITCH_COOLDOWN
 
 # 处理相机高度平滑调整
 func handle_smooth_height_change(delta: float) -> void:
 	if camera_base:
-		height_change_progress += delta * CAMERA_HEIGHT_SMOOTH_SPEED
-		var t: float = ease_out_cubic(clamp(height_change_progress, 0.0, 1.0))
+		height_change_progress += delta * GameConstants.CAMERA_HEIGHT_SMOOTH_SPEED
+		var t: float = GameConstants.ease_out_cubic(clamp(height_change_progress, 0.0, 1.0))
 		var current_height: float = lerp(camera_base.position.y, target_camera_height, t)
 		
 		camera_base.position.y = current_height
