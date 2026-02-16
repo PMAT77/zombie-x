@@ -38,7 +38,7 @@ var player_stats: PlayerStats = PlayerStats.new()
 @onready var sound_effect_land: AudioStreamPlayer = sound_effects.get_node_or_null(^"Land")
 @onready var sound_effect_shoot: AudioStreamPlayer = sound_effects.get_node_or_null(^"Shoot")
 @onready var sound_effect_reload: AudioStreamPlayer = sound_effects.get_node_or_null(^"Reload")
-@onready var world_ui_circle_progress: WorldUICircleProgress = $PlayerModel/WorldUICircleProgress
+#@onready var world_ui_circle_progress: WorldUICircleProgress = $PlayerModel/WorldUICircleProgress
 
 # 节点准备完成时调用
 func _ready() -> void:
@@ -323,8 +323,8 @@ func reload() -> void:
 	if EventBus:
 		EventBus.emit_player_reload_start()
 	
-	if world_ui_circle_progress:
-		world_ui_circle_progress.show_progress(player_stats.reload_time)
+	#if world_ui_circle_progress:
+		#world_ui_circle_progress.show_progress(player_stats.reload_time)
 	
 	if sound_effect_reload and sound_effect_reload.stream:
 		sound_effect_reload.play()

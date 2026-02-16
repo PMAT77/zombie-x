@@ -19,9 +19,9 @@ signal bullet_hit(target: Node, position: Vector3)
 
 # ==================== UI相关事件 ====================
 signal show_notification(message: String, duration: float)
-signal update_health_ui(current: float, max: float)
-signal update_ammo_ui(current: int, max: int)
-signal update_exp_ui(current: float, max: float)
+signal update_health_ui(current: float, max_value: float)
+signal update_ammo_ui(current: int, max_value: int)
+signal update_exp_ui(current: float, max_value: float)
 signal update_level_ui(level: int)
 
 # ==================== 世界相关事件 ====================
@@ -71,14 +71,14 @@ func emit_bullet_hit(target: Node, position: Vector3) -> void:
 func emit_show_notification(message: String, duration: float = 2.0) -> void:
 	emit_signal("show_notification", message, duration)
 
-func emit_update_health_ui(current: float, max: float) -> void:
-	emit_signal("update_health_ui", current, max)
+func emit_update_health_ui(current: float, max_value: float) -> void:
+	emit_signal("update_health_ui", current, max_value)
 
-func emit_update_ammo_ui(current: int, max: int) -> void:
-	emit_signal("update_ammo_ui", current, max)
+func emit_update_ammo_ui(current: int, max_value: int) -> void:
+	emit_signal("update_ammo_ui", current, max_value)
 
-func emit_update_exp_ui(current: float, max: float) -> void:
-	emit_signal("update_exp_ui", current, max)
+func emit_update_exp_ui(current: float, max_value: float) -> void:
+	emit_signal("update_exp_ui", current, max_value)
 
 func emit_update_level_ui(level: int) -> void:
 	emit_signal("update_level_ui", level)

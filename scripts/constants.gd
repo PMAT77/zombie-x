@@ -95,12 +95,6 @@ func _ready() -> void:
 	print("[GameConstants] 常量配置已加载")
 
 # ==================== 工具函数 ====================
-static func deg_to_rad(degrees: float) -> float:
-	return degrees * PI / 180.0
-
-static func rad_to_deg(radians: float) -> float:
-	return radians * 180.0 / PI
-
-static func ease_out_cubic(t: float) -> float:
+func ease_out_cubic(t: float) -> float:
 	var t2: float = t - 1.0
 	return t2 * t2 * t2 + 1.0

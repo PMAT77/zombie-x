@@ -201,10 +201,10 @@ func handle_fall_effect() -> void:
 func handle_keyboard_camera_rotation() -> void:
 	if keyboard_rotation_cooldown <= 0:
 		if Input.is_action_just_pressed("rotate_left"):
-			start_smooth_rotation(-GameConstants.deg_to_rad(GameConstants.KEYBOARD_ROTATION_ANGLE))
+			start_smooth_rotation(-deg_to_rad(GameConstants.KEYBOARD_ROTATION_ANGLE))
 			keyboard_rotation_cooldown = GameConstants.KEYBOARD_ROTATION_COOLDOWN_TIME
 		elif Input.is_action_just_pressed("rotate_right"):
-			start_smooth_rotation(GameConstants.deg_to_rad(GameConstants.KEYBOARD_ROTATION_ANGLE))
+			start_smooth_rotation(deg_to_rad(GameConstants.KEYBOARD_ROTATION_ANGLE))
 			keyboard_rotation_cooldown = GameConstants.KEYBOARD_ROTATION_COOLDOWN_TIME
 
 # 开始平滑旋转
@@ -255,15 +255,15 @@ func rotate_camera(move: Vector2) -> void:
 	if camera_base and camera_rot:
 		camera_base.rotate_y(-move.x)
 		camera_base.orthonormalize()
-		camera_rot.rotation.x = clampf(camera_rot.rotation.x + move.y, GameConstants.deg_to_rad(GameConstants.CAMERA_X_ROT_MIN), GameConstants.deg_to_rad(GameConstants.CAMERA_X_ROT_MAX))
+		camera_rot.rotation.x = clampf(camera_rot.rotation.x + move.y, deg_to_rad(GameConstants.CAMERA_X_ROT_MIN), deg_to_rad(GameConstants.CAMERA_X_ROT_MAX))
 
 # 获取瞄准旋转角度
 func get_aim_rotation() -> float:
-	var camera_x_rot: float = clampf(camera_rot.rotation.x, GameConstants.deg_to_rad(GameConstants.CAMERA_X_ROT_MIN), GameConstants.deg_to_rad(GameConstants.CAMERA_X_ROT_MAX))
+	var camera_x_rot: float = clampf(camera_rot.rotation.x, deg_to_rad(GameConstants.CAMERA_X_ROT_MIN), deg_to_rad(GameConstants.CAMERA_X_ROT_MAX))
 	if camera_x_rot >= 0.0: # 向上瞄准
-		return -camera_x_rot / GameConstants.deg_to_rad(GameConstants.CAMERA_X_ROT_MAX)
+		return -camera_x_rot / deg_to_rad(GameConstants.CAMERA_X_ROT_MAX)
 	else: # 向下瞄准
-		return camera_x_rot / GameConstants.deg_to_rad(GameConstants.CAMERA_X_ROT_MIN)
+		return camera_x_rot / deg_to_rad(GameConstants.CAMERA_X_ROT_MIN)
 
 # 获取相机基础四元数
 func get_camera_base_quaternion() -> Quaternion:
@@ -305,7 +305,7 @@ func switch_camera_mode(new_mode: CameraMode) -> void:
 		
 		# 切换到键盘控制模式时，平滑过渡相机X轴角度到25度
 		if new_mode == CameraMode.KEYBOARD_CONTROL and camera_rot:
-			target_x_rotation = GameConstants.deg_to_rad(GameConstants.CAMERA_X_ROT_CONSTRAINT)
+			target_x_rotation = deg_to_rad(GameConstants.CAMERA_X_ROT_CONSTRAINT)
 			is_x_rotating = true
 			x_rotation_progress = 0.0 
 
