@@ -1,0 +1,9 @@
+[gd_scene format=3 uid="uid://cgi66ie4ilcoq"]
+
+[ext_resource type="Script" uid="uid://uelbpxcr43r5" path="res://player/progress/world_ui_circle_progress.gd" id="1"]
+[ext_resource type="PackedScene" uid="uid://bguuafpd6h8h6" path="res://player/progress/CircleProgress.tscn" id="2"]
+
+[node name="WorldUICircleProgress" type="Node3D" unique_id=1766162700]
+script = ExtResource("1")
+
+[node name="CircleProgress" parent="." unique_id=356694000 instance=ExtResource("2")]
